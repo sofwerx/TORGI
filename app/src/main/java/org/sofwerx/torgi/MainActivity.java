@@ -1,8 +1,6 @@
-package org.sofwerx.signalmonitor;
+package org.sofwerx.torgi;
 
 import android.Manifest;
-import android.database.Cursor;
-import android.database.sqlite.SQLiteDatabase;
 import android.location.GnssClock;
 import android.os.Bundle;
 import android.os.Environment;
@@ -15,7 +13,6 @@ import android.view.MenuItem;
 
 import java.util.Collection;
 import java.util.HashMap;
-import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
 
@@ -35,8 +32,6 @@ import android.location.GnssMeasurementsEvent;
 
 import static java.time.Instant.now;
 import android.app.AlertDialog;
-
-import javax.crypto.spec.GCMParameterSpec;
 
 import mil.nga.geopackage.BoundingBox;
 import mil.nga.geopackage.GeoPackage;

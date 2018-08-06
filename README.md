@@ -1,4 +1,7 @@
 # TORGI
+
+[![Build Status](https://travis-ci.org/sofwerx/TORGI.svg?branch=master)](https://travis-ci.org/sofwerx/TORGI)
+
 ### Tactical Observation of RF &amp; GNSS Interference
 
 GNSS observation points are stored in a [GeoPackage](http://www.geopackage.org/) file with

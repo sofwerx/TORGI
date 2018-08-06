@@ -1,0 +1,38 @@
+sudo: required
+services:
+- docker
+language: bash
+before_script:
+- openssl aes-256-cbc -K $encrypted_a09fee89eb14_key -iv $encrypted_a09fee89eb14_iv -in .dmport.enc -out .dmport -d
+- sudo apt-get -qq update
+- curl -sL https://deb.nodesource.com/setup_6.x | sudo -E bash -
+- sudo apt-get install -y nodejs
+- sudo npm install -g @mumbacloud/dmport
+- eval $(dmport --import "$(cat .dmport)")
+- rm -f .dmport
+script:
+- export COMPOSE_PROJECT_NAME=swxvmhost
+- make
+- cp torgi-debug.apk torgi-debug_${TRAVIS_TAG}.apk
+- cp torgi-release-unsigned.apk torgi-release-unsigned_${TRAVIS_TAG}.apk
+after_success:
+- docker login -u="$DOCKER_USERNAME" -p="$DOCKER_PASSWORD"
+- docker push sofwerx/tor-vpin-pizerow:${TRAVIS_TAG}
+branches:
+  only:
+  - master
+  - "/^v\\d.*$/"
+deploy:
+  provider: releases
+  skip_cleanup: true
+  api_key: "${GITHUB_TOKEN}"
+  file:
+  - torgi-debug_${TRAVIS_TAG}.apk
+  - torgi-release-unsigned_${TRAVIS_TAG}.apk
+  on:
+    tags: true
+    repo: "${TRAVIS_REPO_SLUG}"
+notifications:
+  slack:
+    rooms:
+      secure: mlKHAU847yNmjblLRiLoWKlXUhi5XrYy4qqeShocfshbnsL399XOoVfGmpifVMEBpprrMg52r5gED9GlC2dlAt2Sv9hVKlBea0U4h4t6+eu06OpTjujEJZYoCKSCDdidwr2LZCJhhoWHBkSYzPZ/LQgdgoZYg2x6fOXX+HiEEBNUvPiwKeTlyiWBDkZBqrAcjvVdMYGLvuzFao1TFlhwmCoJs7Ff3rry6kWVa2gJC1xS2cvLnIg+9CY6vHBo0gwJX39TowhMAZbhiAUjoVciofV6KSnwl95sROJb8ZHQh2Uzlut5CfJcr+tI/SYz2uObKSnQbjkbB/W/6agr741onJd0KKQLB/PyHsO5zXi+dx1RjYoOnzalT5OBZmI14dq3Yx3Mg4R/0C08yLpwjmBZHmbyu7dtEFZHKLwo8OYr9KnMUp3ovTqK6jlKbVa5lP+NQojx1ZUyRs6ufgwaSlFei4kCcl0R/zLcF7wFBhCASQTkI/BIelODcglBF8H4Ec9/Bmsli0D21QS86o2LPjsQx4y93W69e0Gl5xf1QZtyY/Kz9bYFFX4BNuXggEjInL9NDTX+VU+dn23edEdvgD+418/9OSuiKLkC4GzntOkiWxIg0EBDKrZBNriJlAZPf3RDrM72cS3cJj/zVZhg3pcD94PkHGABoUwwAB7RnFY5iEE=

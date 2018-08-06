@@ -1,0 +1,10 @@
+version: '2.1'
+
+services:
+
+  torgi:
+    image: sofwerx/torgi
+    build: .
+    container_name: torgi
+    hostname: torgi
+

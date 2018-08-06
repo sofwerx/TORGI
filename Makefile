@@ -4,4 +4,4 @@ all:
 	docker exec torgi find /torgi/ -name '*.apk' | while read line ; do \
 		docker cp torgi:$$line . ; \
 	done
-	docker-compose down
+	docker-compose down || true

@@ -26,6 +26,9 @@ deploy:
   provider: releases
   skip_cleanup: true
   api_key: "${GITHUB_TOKEN}"
+  # Temp. fix for DPL 1.9 issue (https://github.com/travis-ci/travis-ci/issues/9312)
+  edge:
+    branch: v1.8.47
   file:
   - torgi-debug_${TRAVIS_TAG}.apk
   - torgi-release-unsigned_${TRAVIS_TAG}.apk

@@ -1,6 +1,5 @@
 # TORGI
 
-[![Current release](https://img.shields.io/github/release/qubyte/rubidium/all.svg)](https://github.com/sofwerx/TORGI/releases)
 [![Waffle.io - Columns and their card count](https://badge.waffle.io/sofwerx/TORGI.svg?columns=all)](https://waffle.io/sofwerx/TORGI)
 [![Build Status](https://travis-ci.org/sofwerx/TORGI.svg?branch=master)](https://travis-ci.org/sofwerx/TORGI)
 

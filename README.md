@@ -7,6 +7,8 @@
 
 Collect, store, and display observations and analysis of GPS "fix" availability and quality.
 
+Android 7.0 or higher required; 8.0 recommended. Google Pixel 2 (or Pixel 2 XL) provides Automatic Gain Control data.
+
 #### [Compiled APK (Android app installer)](https://github.com/sofwerx/TORGI/releases/)
 
 GNSS observation points are stored in a [GeoPackage](http://www.geopackage.org/) file with

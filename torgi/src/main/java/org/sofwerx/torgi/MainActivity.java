@@ -8,6 +8,8 @@ import android.os.Build;
 import android.os.Bundle;
 import android.os.Environment;
 import android.text.TextUtils;
+import android.view.Window;
+import android.view.WindowManager;
 import android.widget.TextView;
 
 import android.support.v7.app.AppCompatActivity;
@@ -528,11 +530,25 @@ public class MainActivity extends AppCompatActivity {
 
         toolbar.setTitle(dlgMsg);
 
-        if (Build.VERSION.SDK_INT < MIN_SDK_GNSS) { // won't need extra text areas
+        getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
 
+        if (Build.VERSION.SDK_INT < MIN_SDK_GNSS) { // won't need extra text areas
+            int meas_h = meas_tv.getHeight();
+            int stat_h = meas_tv.getHeight();
+
+            int new_meas = meas_h / 4;
+            int new_stat = stat_h / 4;
+            meas_tv.setHeight(new_meas);
+            stat_tv.setHeight(new_stat);
+            stat_tv.setTop(stat_tv.getTop() - (meas_h - new_meas));
+
+            cur_tv.setHeight(cur_tv.getHeight() + (meas_h - new_meas) + (stat_h - new_stat));
+
+            meas_tv.setText("(individual sat measurements unavailable on this platform)\n", TextView.BufferType.EDITABLE);
+            stat_tv.setText("(rcvr clock measurements unavailable on this platform)\n", TextView.BufferType.EDITABLE);
         }
 
-            if (ContextCompat.checkSelfPermission(this, android.Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
+        if (ContextCompat.checkSelfPermission(this, android.Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
             stat_tv.setText("Location access denied.");
         } else {
             LocationManager locMgr = getSystemService(LocationManager.class);
@@ -575,7 +591,6 @@ public class MainActivity extends AppCompatActivity {
             throw new GeoPackageException("Failed to open GeoPackage database " + GpkgFilename);
         }
 
-
         // create SRS & feature tables
         SpatialReferenceSystemDao srsDao = gpkg.getSpatialReferenceSystemDao();
 
@@ -584,7 +599,7 @@ public class MainActivity extends AppCompatActivity {
         gpkg.createGeometryColumnsTable();
 
         PtsTable = createObservationTable(gpkg, srs, PtsTableName, GeometryType.POINT);
-        String bbsql = "UPDATE gpkg_contents SET min_x = 0.0, max_x = 0.0, min_y = 0.0, max_y = 0.0 WHERE table_name = '" + PtsTableName + "';";
+        String bbsql = "UPDATE gpkg_contents SET min_x = 180.0, max_x = -180.0, min_y = 90.0, max_y = -90.0 WHERE table_name = '" + PtsTableName + "';";
         gpkg.execSQL(bbsql);
 
         Contents contents = new Contents();

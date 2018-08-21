@@ -25,8 +25,8 @@
     <TextView
         android:id="@+id/measurement_text"
         android:layout_width="match_parent"
-        android:layout_height="230dp"
-        android:layout_marginTop="60dp"
+        android:layout_height="200dp"
+        android:layout_marginTop="460dp"
         android:isScrollContainer="true"
         android:maxHeight="190dp"
         android:scrollIndicators="right"
@@ -37,8 +37,8 @@
     <TextView
         android:id="@+id/status_text"
         android:layout_width="match_parent"
-        android:layout_height="230dp"
-        android:layout_marginTop="300dp"
+        android:layout_height="200dp"
+        android:layout_marginTop="260dp"
         android:isScrollContainer="true"
         android:maxHeight="190dp"
         android:scrollIndicators="right"
@@ -50,8 +50,8 @@
     <TextView
         android:id="@+id/current_text"
         android:layout_width="match_parent"
-        android:layout_height="190dp"
-        android:layout_marginTop="540dp"
+        android:layout_height="200dp"
+        android:layout_marginTop="60dp"
         android:isScrollContainer="true"
         android:maxHeight="190dp"
         android:scrollIndicators="right"

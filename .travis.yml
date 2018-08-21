@@ -15,7 +15,7 @@ script:
 - make
 - ls -la
 - cp torgi-debug.apk torgi-debug_${TRAVIS_TAG}.apk
-- cp torgi-release.apk torgi-release_${TRAVIS_TAG}.apk
+- cp torgi.apk torgi-release_${TRAVIS_TAG}.apk
 after_success:
 - docker login -u="$DOCKER_USERNAME" -p="$DOCKER_PASSWORD"
 - docker push sofwerx/torgi:${TRAVIS_TAG}
@@ -29,7 +29,7 @@ deploy:
   api_key: "${GITHUB_TOKEN}"
   file:
   - torgi-debug_${TRAVIS_TAG}.apk
-  - torgi-release_${TRAVIS_TAG}.apk
+  - torgi_${TRAVIS_TAG}.apk
   on:
     tags: true
     repo: "${TRAVIS_REPO_SLUG}"

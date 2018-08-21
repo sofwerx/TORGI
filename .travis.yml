@@ -15,7 +15,7 @@ script:
 - make
 - ls -la
 - cp torgi-debug.apk torgi-debug_${TRAVIS_TAG}.apk
-- cp torgi-release-unsigned_.apk torgi-release-unsigned_${TRAVIS_TAG}.apk
+- cp torgi-release-unsigned.apk torgi-release-unsigned_${TRAVIS_TAG}.apk
 after_success:
 - docker login -u="$DOCKER_USERNAME" -p="$DOCKER_PASSWORD"
 - docker push sofwerx/torgi:${TRAVIS_TAG}

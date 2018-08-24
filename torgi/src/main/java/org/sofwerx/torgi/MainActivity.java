@@ -7,9 +7,13 @@ import android.location.GnssClock;
 import android.os.Build;
 import android.os.Bundle;
 import android.os.Environment;
+import android.os.PowerManager;
 import android.text.TextUtils;
+import android.util.Base64;
 import android.view.Window;
 import android.view.WindowManager;
+import android.webkit.WebSettings;
+import android.webkit.WebView;
 import android.widget.TextView;
 
 import android.support.v7.app.AppCompatActivity;
@@ -511,7 +515,8 @@ public class MainActivity extends AppCompatActivity {
 
         String[] perms = {Manifest.permission.ACCESS_FINE_LOCATION,
                 Manifest.permission.WRITE_EXTERNAL_STORAGE,
-                Manifest.permission.SEND_SMS
+//                Manifest.permission.SEND_SMS,
+                Manifest.permission.WAKE_LOCK
         };
         ActivityCompat.requestPermissions(this, perms, 1);
 
@@ -530,7 +535,7 @@ public class MainActivity extends AppCompatActivity {
 
         toolbar.setTitle(dlgMsg);
 
-        getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
+//        getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
 
         if (Build.VERSION.SDK_INT < MIN_SDK_GNSS) { // won't need extra text areas
             int meas_h = meas_tv.getHeight();
@@ -551,6 +556,11 @@ public class MainActivity extends AppCompatActivity {
         if (ContextCompat.checkSelfPermission(this, android.Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
             stat_tv.setText("Location access denied.");
         } else {
+            PowerManager powerManager = (PowerManager) getSystemService(POWER_SERVICE);
+            PowerManager.WakeLock wakeLock = powerManager.newWakeLock(PowerManager.PARTIAL_WAKE_LOCK,
+                    "MyApp::MyWakelockTag");
+            wakeLock.acquire();
+
             LocationManager locMgr = getSystemService(LocationManager.class);
             if (Build.VERSION.SDK_INT >= MIN_SDK_GNSS) {
                 locMgr.registerGnssMeasurementsCallback(MeasurementListener);
@@ -559,6 +569,18 @@ public class MainActivity extends AppCompatActivity {
             Criteria crit = new Criteria();
             locMgr.requestLocationUpdates(locMgr.getBestProvider(crit, true), (long) 1000, (float) 0.0, locListener);
         }
+
+//        WebView map = findViewById(R.id.map_view);
+//        WebSettings webSettings = map.getSettings();
+//        webSettings.setJavaScriptEnabled(true);
+//
+//        String unencodedHtml =
+//                "<html><body>'%23' is the percent code for ‘#‘ </body></html>";
+//        String encodedHtml = Base64.encodeToString(unencodedHtml.getBytes(), Base64.NO_PADDING);
+//        map.loadData(encodedHtml, "text/html", "base64");
+
+//        WebView map = new WebView(this);
+//        setContentView(map);
     };
 //////////////////////////////////////////////////////////////////////////////////////
 

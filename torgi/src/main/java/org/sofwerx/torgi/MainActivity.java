@@ -50,6 +50,7 @@ import android.location.GnssMeasurement;
 import android.location.GnssMeasurementsEvent;
 
 import static java.time.Instant.now;
+import static mil.nga.geopackage.db.GeoPackageDataType.INT;
 import static mil.nga.geopackage.db.GeoPackageDataType.INTEGER;
 import static mil.nga.geopackage.db.GeoPackageDataType.TEXT;
 import static mil.nga.geopackage.db.GeoPackageDataType.REAL;
@@ -147,8 +148,11 @@ public class MainActivity extends AppCompatActivity {
     private static final String PtsTableName = "gps_observation_points";
     private static final String satTblName = "sat_data";
     private static final String clkTblName = "rcvr_clock";
+    private static final String motionTblName = "motion";
     private static final String satmapTblName = PtsTableName + "_" + satTblName;
     private static final String clkmapTblName = satTblName + "_" + clkTblName;
+    private static final String motionmapTblName = PtsTableName + "_" + motionTblName;
+
 
     HashMap<String, SatStatus> SatStatus = new HashMap<>();
     HashMap<String, GnssMeasurement> SatInfo = new HashMap<>();
@@ -161,6 +165,7 @@ public class MainActivity extends AppCompatActivity {
     UserTable PtsTable = null;
     UserTable SatTable = null;
     UserTable ClkTable = null;
+    UserTable MotionTable = null;
 
 
     @RequiresApi(26)
@@ -426,25 +431,58 @@ public class MainActivity extends AppCompatActivity {
                 frow.setValue("RadialAccuracy", (double) 0.0);
                 frow.setValue("HasRadialAccuracy", 0);
             }
+
+            if (loc.hasSpeed()) {
+                frow.setValue("Speed", (double) loc.getAccuracy());
+                frow.setValue("HasSpeed", 1);
+            } else {
+                frow.setValue("Speed", (double) 0.0);
+                frow.setValue("HasSpeed", 0);
+            }
+
+            if (loc.hasBearing()) {
+                frow.setValue("Bearing", (double) loc.getAccuracy());
+                frow.setValue("HasBearing", 1);
+            } else {
+                frow.setValue("Bearing", (double) 0.0);
+                frow.setValue("HasBearing", 0);
+            }
+
             if (Build.VERSION.SDK_INT >= MIN_SDK_GNSS) {
                 frow.setValue("SysTime", now().toString());
+
                 if (loc.hasVerticalAccuracy()) {
-                    if (loc.hasVerticalAccuracy()) {
                         frow.setValue("VerticalAccuracy", (double) loc.getVerticalAccuracyMeters());
-                        frow.setValue("HasVerticalAccuracy", 1);
-                    } else {
-                        frow.setValue("VerticalAccuracy", (double) 0.0);
-                        frow.setValue("HasVerticalAccuracy", 0);
-                    }
+                    frow.setValue("HasVerticalAccuracy", 1);
                 } else {
-                    Date currentTime = Calendar.getInstance().getTime();
-                    SimpleDateFormat df = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSSZ", Locale.US);
-                    frow.setValue("SysTime", df.format(currentTime));
-                    frow.setValue("HasVerticalAccuracy", 0);
                     frow.setValue("VerticalAccuracy", (double) 0.0);
+                    frow.setValue("HasVerticalAccuracy", 0);
                 }
+
+                if (loc.hasSpeedAccuracy()) {
+                    frow.setValue("SpeedAccuracy", (double) loc.getAccuracy());
+                    frow.setValue("HasSpeedAccuracy", 1);
+                } else {
+                    frow.setValue("SpeedAccuracy", (double) 0.0);
+                    frow.setValue("HasSpeedAccuracy", 0);
+                }
+
+                if (loc.hasBearingAccuracy()) {
+                    frow.setValue("BearingAccuracy", (double) loc.getAccuracy());
+                    frow.setValue("HasBearingAccuracy", 1);
+                } else {
+                    frow.setValue("BearingAccuracy", (double) 0.0);
+                    frow.setValue("HasBearingAccuracy", 0);
+                }
+            } else {
+                Date currentTime = Calendar.getInstance().getTime();
+                SimpleDateFormat df = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSSZ", Locale.US);
+                frow.setValue("SysTime", df.format(currentTime));
+                frow.setValue("HasVerticalAccuracy", 0);
+                frow.setValue("VerticalAccuracy", (double) 0.0);
             }
-            frow.setValue("data_dump", loc.toString());
+
+            frow.setValue("data_dump", loc.toString() + " " + loc.describeContents());
 
             featDao.insert(frow);
 
@@ -630,6 +668,8 @@ public class MainActivity extends AppCompatActivity {
         SatTable = createSatelliteTable(contents, RTE, srs, satTblName, satmapTblName, PtsTableName);
         ClkTable = createClockTable(contents, RTE, srs, clkTblName, clkmapTblName, satTblName);
 
+        MotionTable = createMotionTable(contents, RTE, srs, motionTblName, motionmapTblName, PtsTableName);
+
         return gpkg;
     }
 
@@ -660,6 +700,19 @@ public class MainActivity extends AppCompatActivity {
         tblcols.add(FeatureColumn.createColumn(colNum++, "HasVerticalAccuracy", INTEGER, false, null));
         tblcols.add(FeatureColumn.createColumn(colNum++, "RadialAccuracy", REAL, false, null));
         tblcols.add(FeatureColumn.createColumn(colNum++, "VerticalAccuracy", REAL, false, null));
+
+        tblcols.add(FeatureColumn.createColumn(colNum++, "ElapsedRealtimeNanos", REAL, false, null));
+
+        tblcols.add(FeatureColumn.createColumn(colNum++, "HasSpeed", INTEGER, false, null));
+        tblcols.add(FeatureColumn.createColumn(colNum++, "HasSpeedAccuracy", INTEGER, false, null));
+        tblcols.add(FeatureColumn.createColumn(colNum++, "Speed", REAL, false, null));
+        tblcols.add(FeatureColumn.createColumn(colNum++, "SpeedAccuracy", REAL, false, null));
+
+        tblcols.add(FeatureColumn.createColumn(colNum++, "HasBearing", INTEGER, false, null));
+        tblcols.add(FeatureColumn.createColumn(colNum++, "HasBearingAccuracy", INTEGER, false, null));
+        tblcols.add(FeatureColumn.createColumn(colNum++, "Bearing", REAL, false, null));
+        tblcols.add(FeatureColumn.createColumn(colNum++, "BearingAccuracy", REAL, false, null));
+
         tblcols.add(FeatureColumn.createColumn(colNum++, "data_dump", TEXT, false, null));
 
         FeatureTable table = new FeatureTable(tableName, tblcols);
@@ -783,6 +836,68 @@ public class MainActivity extends AppCompatActivity {
         return (table);
     }
 
+    private UserTable createMotionTable(Contents contents, RelatedTablesExtension rte, SpatialReferenceSystem srs, String tableName, String mapTblName, String baseTblName) {
+        contents.setTableName(tableName);
+        contents.setDataType(ContentsDataType.FEATURES);
+        contents.setIdentifier(tableName);
+        contents.setDescription(tableName);
+        contents.setSrs(srs);
+
+        int colNum = 1;
+        List<UserCustomColumn> tblcols = new LinkedList<>();
+//        tblcols.add(UserCustomColumn.createPrimaryKeyColumn(colNum++, ID_COLUMN));
+        // Dublin Core metadata descriptor profile
+//        tblcols.add(UserCustomColumn.createColumn(colNum++, DublinCoreType.DATE.getName(), DATETIME, false, null));
+//        tblcols.add(FeatureColumn.createColumn(colNum++, DublinCoreType.TITLE.getName(), TEXT, false, null));
+//        tblcols.add(FeatureColumn.createColumn(colNum++, DublinCoreType.SOURCE.getName(), TEXT, false, null));
+//        tblcols.add(FeatureColumn.createColumn(colNum++, DublinCoreType.DESCRIPTION.getName(), TEXT, false, null));
+
+        // android intertial sensor measurements
+        tblcols.add(UserCustomColumn.createColumn(colNum++, "accel_x", REAL, true, null));
+        tblcols.add(UserCustomColumn.createColumn(colNum++, "accel_y", REAL, true, null));
+        tblcols.add(UserCustomColumn.createColumn(colNum++, "accel_z", REAL, true, null));
+
+        tblcols.add(UserCustomColumn.createColumn(colNum++, "linear_accel_x", REAL, true, null));
+        tblcols.add(UserCustomColumn.createColumn(colNum++, "linear_accel_y", REAL, true, null));
+        tblcols.add(UserCustomColumn.createColumn(colNum++, "linear_accel_z", REAL, true, null));
+
+        tblcols.add(UserCustomColumn.createColumn(colNum++, "mag_x", REAL, true, null));
+        tblcols.add(UserCustomColumn.createColumn(colNum++, "mag_y", REAL, true, null));
+        tblcols.add(UserCustomColumn.createColumn(colNum++, "mag_z", REAL, true, null));
+
+        tblcols.add(UserCustomColumn.createColumn(colNum++, "gyro_x", REAL, true, null));
+        tblcols.add(UserCustomColumn.createColumn(colNum++, "gyro_y", REAL, true, null));
+        tblcols.add(UserCustomColumn.createColumn(colNum++, "gyro_z", REAL, true, null));
+
+        tblcols.add(UserCustomColumn.createColumn(colNum++, "gravity_x", REAL, true, null));
+        tblcols.add(UserCustomColumn.createColumn(colNum++, "gravity_y", REAL, true, null));
+        tblcols.add(UserCustomColumn.createColumn(colNum++, "gravity_z", REAL, true, null));
+
+        tblcols.add(UserCustomColumn.createColumn(colNum++, "rot_vec_x", REAL, true, null));
+        tblcols.add(UserCustomColumn.createColumn(colNum++, "rot_vec_y", REAL, true, null));
+        tblcols.add(UserCustomColumn.createColumn(colNum++, "rot_vec_z", REAL, true, null));
+        tblcols.add(UserCustomColumn.createColumn(colNum++, "rot_vec_cos", REAL, true, null));
+        tblcols.add(UserCustomColumn.createColumn(colNum++, "rot_vec_hdg_acc", REAL, true, null));
+
+        tblcols.add(UserCustomColumn.createColumn(colNum++, "baro", REAL, true, null));
+        tblcols.add(UserCustomColumn.createColumn(colNum++, "humidity", REAL, true, null));
+        tblcols.add(UserCustomColumn.createColumn(colNum++, "temp", REAL, true, null));
+
+        tblcols.add(UserCustomColumn.createColumn(colNum++, "lux", REAL, true, null));
+        tblcols.add(UserCustomColumn.createColumn(colNum++, "prox", REAL, true, null));
+
+        tblcols.add(UserCustomColumn.createColumn(colNum++, "stationary", INTEGER, true, null));
+        tblcols.add(UserCustomColumn.createColumn(colNum++, "motion", INTEGER, true, null));
+
+        tblcols.add(UserCustomColumn.createColumn(colNum++, "data_dump", TEXT, true, null));
+
+        SimpleAttributesTable table = SimpleAttributesTable.create(tableName, tblcols);
+
+        UserMappingTable mapTbl = UserMappingTable.create(mapTblName);
+        ClkExtRel = rte.addSimpleAttributesRelationship(baseTblName, table, mapTbl);
+
+        return (table);
+    }
 
     @Override
     public boolean onCreateOptionsMenu(Menu menu) {

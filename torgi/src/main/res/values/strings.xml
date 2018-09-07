@@ -1,4 +1,11 @@
 <resources>
     <string name="app_name">TORGI</string>
+    <string name="notification">TORGI is collecting data...</string>
     <string name="action_settings">Settings</string>
+    <string name="quit_torgi">Quit TORGI?</string>
+    <string name="measurement">Measurements:</string>
+    <string name="used_in_fix">Used in current fix:</string>
+    <string name="quit_torgi_narrative">Do you want to shutdown TORGI or do you want TORGI to keep collecting data in the background?</string>
+    <string name="quit_yes">Shutdown</string>
+    <string name="quit_run_in_background">Run in background</string>
 </resources>

@@ -1,7 +1,6 @@
-package org.sofwerx.torgi;
+package org.sofwerx.torgi.service;
 
 import android.Manifest;
-import android.annotation.TargetApi;
 import android.app.Notification;
 import android.app.NotificationChannel;
 import android.app.NotificationManager;
@@ -10,8 +9,6 @@ import android.app.Service;
 import android.content.Context;
 import android.content.Intent;
 import android.content.pm.PackageManager;
-import android.database.sqlite.SQLiteCantOpenDatabaseException;
-import android.location.Criteria;
 import android.location.GnssClock;
 import android.location.GnssMeasurement;
 import android.location.GnssMeasurementsEvent;
@@ -24,12 +21,14 @@ import android.os.Build;
 import android.os.Bundle;
 import android.os.Environment;
 import android.os.IBinder;
-import android.os.PowerManager;
 import android.support.annotation.Nullable;
 import android.support.annotation.RequiresApi;
 import android.support.v4.content.ContextCompat;
 import android.util.Log;
-import android.widget.TextView;
+
+import org.sofwerx.torgi.listener.GnssMeasurementListener;
+import org.sofwerx.torgi.R;
+import org.sofwerx.torgi.SatStatus;
 
 import java.sql.SQLException;
 import java.text.SimpleDateFormat;
@@ -74,7 +73,6 @@ import mil.nga.sf.Point;
 import mil.nga.sf.proj.ProjectionConstants;
 
 import static java.time.Instant.now;
-import static java.time.Instant.parse;
 import static mil.nga.geopackage.db.GeoPackageDataType.DATETIME;
 import static mil.nga.geopackage.db.GeoPackageDataType.INTEGER;
 import static mil.nga.geopackage.db.GeoPackageDataType.REAL;
@@ -83,7 +81,7 @@ import static mil.nga.geopackage.db.GeoPackageDataType.TEXT;
 /**
  * Torgi service handles getting information from the GPS receiver (and eventually accepting data
  * from other sensors as well) and then storing that data in the GeoPackage as well as making
- * this info available to any listenng UI element.
+ * this info available to any listening UI element.
  *
  * TODO this is currently on the main thread - move to a separate thread to support more responsive UI
  */
@@ -131,7 +129,7 @@ public class TorgiService extends Service {
     private static final String clkmapTblName = satTblName + "_" + clkTblName;
     private static final String motionmapTblName = PtsTableName + "_" + motionTblName;
 
-    private ArrayList<SatStatus> sats = new ArrayList<>();
+    private ArrayList<org.sofwerx.torgi.SatStatus> sats = new ArrayList<>();
     private GeoPackage gpkg = null;
 
     HashMap<String, SatStatus> SatStatus = new HashMap<>();
@@ -312,11 +310,8 @@ public class TorgiService extends Service {
             SatRowsToMap.clear();
 
             for(final GnssMeasurement g : gm) {
-
                 String con = SatType.get(g.getConstellationType());
                 String hashkey = con + g.getSvid();
-
-                HashMap<String, String> thisSat = new HashMap<String, String>();
 
                 SimpleAttributesDao satDao = RTE.getSimpleAttributesDao(satTblName);
                 SimpleAttributesRow satrow = satDao.newRow();
@@ -327,7 +322,7 @@ public class TorgiService extends Service {
 
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
                     if (g.hasAutomaticGainControlLevelDb()) {
-                        satrow.setValue("agc", (double) g.getAutomaticGainControlLevelDb());
+                        satrow.setValue("agc", g.getAutomaticGainControlLevelDb());
                         satrow.setValue("has_agc", 1);
                     } else {
                         satrow.setValue("agc", 0);
@@ -880,7 +875,7 @@ public class TorgiService extends Service {
     private void setForeground() {
         PendingIntent pendingIntent = null;
         try {
-            Intent notificationIntent = new Intent(this, Class.forName("org.sofwerx.torgi.MainActivity"));
+            Intent notificationIntent = new Intent(this, Class.forName("org.sofwerx.torgi.ui.MainActivity"));
             pendingIntent = PendingIntent.getActivity(this, 0, notificationIntent, 0);
         } catch (ClassNotFoundException ignore) {
         }

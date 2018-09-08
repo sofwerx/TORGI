@@ -1,7 +1,9 @@
-package org.sofwerx.torgi;
+package org.sofwerx.torgi.listener;
 
 import android.location.GnssMeasurement;
 import android.location.Location;
+
+import org.sofwerx.torgi.SatStatus;
 
 import java.util.ArrayList;
 import java.util.Collection;

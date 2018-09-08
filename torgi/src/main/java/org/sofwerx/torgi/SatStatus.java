@@ -1,19 +1,19 @@
 package org.sofwerx.torgi;
 
 public class SatStatus {
-    String constellation;
-    int svid;
+    public String constellation;
+    public int svid;
 
-    double cn0;
-    boolean in_fix;
+    public double cn0;
+    public boolean in_fix;
 
-    boolean has_almanac;
-    boolean has_ephemeris;
-    boolean has_carrier_freq;
+    public boolean has_almanac;
+    public boolean has_ephemeris;
+    public boolean has_carrier_freq;
 
-    double elevation_deg;
-    double azimuth_deg;
-    double carrier_freq_hz;
+    public double elevation_deg;
+    public double azimuth_deg;
+    public double carrier_freq_hz;
 
     private boolean usedInFix = false;
 

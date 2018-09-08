@@ -1,4 +1,4 @@
-package org.sofwerx.torgi;
+package org.sofwerx.torgi.ui;
 
 import android.Manifest;
 import android.app.AlertDialog;
@@ -21,8 +21,6 @@ import android.util.Log;
 import android.view.View;
 import android.widget.TextView;
 
-import android.support.v7.app.AppCompatActivity;
-
 import java.text.DecimalFormat;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
@@ -36,12 +34,19 @@ import com.google.android.gms.maps.CameraUpdateFactory;
 import com.google.android.gms.maps.GoogleMap;
 import com.google.android.gms.maps.OnMapReadyCallback;
 import com.google.android.gms.maps.SupportMapFragment;
+import com.google.android.gms.maps.model.BitmapDescriptorFactory;
 import com.google.android.gms.maps.model.LatLng;
-import com.google.android.gms.maps.model.MapStyleOptions;
 import com.google.android.gms.maps.model.Marker;
 import com.google.android.gms.maps.model.MarkerOptions;
 import com.google.android.gms.maps.model.Polyline;
 import com.google.android.gms.maps.model.PolylineOptions;
+
+import org.osmdroid.util.GeoPoint;
+import org.osmdroid.views.overlay.gestures.RotationGestureOverlay;
+import org.sofwerx.torgi.listener.GnssMeasurementListener;
+import org.sofwerx.torgi.R;
+import org.sofwerx.torgi.SatStatus;
+import org.sofwerx.torgi.service.TorgiService;
 
 public class MainActivity extends FragmentActivity implements OnMapReadyCallback, GnssMeasurementListener {
     private LatLng CENTER_US = new LatLng(39.181071, -99.938295);
@@ -58,11 +63,13 @@ public class MainActivity extends FragmentActivity implements OnMapReadyCallback
     private boolean serviceBound = false;
     private TorgiService torgiService = null;
     private GoogleMap mMap;
+    private org.osmdroid.views.MapView osmMap = null;
     private boolean mapReady = false;
     private Marker current = null;
+    private org.osmdroid.views.overlay.Marker currentOSM = null;
     private Polyline historyPolyline = null;
+    private org.osmdroid.views.overlay.Polyline historyPolylineOSM = null;
     private ArrayList<LatLng> history = null;
-    private LatLng currentFixLatLng = null;
 
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -83,9 +90,22 @@ public class MainActivity extends FragmentActivity implements OnMapReadyCallback
         SupportMapFragment mapFragment = (SupportMapFragment) getSupportFragmentManager().findFragmentById(R.id.map);
         mapFragment.getMapAsync(this);
 
+        osmMapSetup();
+
         checkPermissions();
         startService();
     };
+
+    private void osmMapSetup() {
+        osmMap = findViewById(R.id.maposm);
+
+        RotationGestureOverlay mRotationGestureOverlay = new RotationGestureOverlay(osmMap);
+        mRotationGestureOverlay.setEnabled(true);
+        osmMap.getOverlays().add(mRotationGestureOverlay);
+        osmMap.setBuiltInZoomControls(false);
+        osmMap.setMultiTouchControls(true); //needed for pinch zooms
+        osmMap.setTilesScaledToDpi(true); //scales tiles to the current screen's DPI, helps with readability of labels
+    }
 
     @Override
     public void onResume() {
@@ -157,15 +177,45 @@ public class MainActivity extends FragmentActivity implements OnMapReadyCallback
                     historyPolyline = mMap.addPolyline(opts);
                 } else
                     historyPolyline.setPoints(history);
+
+                if (historyPolylineOSM == null) {
+                    historyPolylineOSM = new org.osmdroid.views.overlay.Polyline();
+                    ArrayList<GeoPoint> list = new ArrayList<>();
+                    for (LatLng pt:history) {
+                        list.add(new GeoPoint(pt.latitude,pt.longitude));
+                    }
+                    historyPolylineOSM.setPoints(list);
+                    historyPolylineOSM.setColor(Color.YELLOW);
+                    osmMap.getOverlays().add(historyPolylineOSM);
+                } else
+                    historyPolylineOSM.addPoint(new GeoPoint(pos.latitude,pos.longitude));
             }
-            currentFixLatLng = pos;
+
             if (current == null) {
                 current = mMap.addMarker(new MarkerOptions()
                         .position(pos)
+                        .anchor(0.5f,0.5f)
+                        .icon(BitmapDescriptorFactory.fromResource(R.drawable.map_icon))
                         .title("GPS"));
                 mMap.moveCamera(CameraUpdateFactory.newLatLngZoom(pos, 19));
             } else
                 current.setPosition(pos);
+            if (currentOSM == null) {
+                currentOSM = new org.osmdroid.views.overlay.Marker(osmMap);
+                currentOSM.setPosition(new GeoPoint(pos.latitude,pos.longitude));
+                currentOSM.setAnchor(org.osmdroid.views.overlay.Marker.ANCHOR_CENTER,org.osmdroid.views.overlay.Marker.ANCHOR_CENTER);
+                currentOSM.setIcon(getResources().getDrawable(R.drawable.map_icon));
+                currentOSM.setTitle("GPS");
+                osmMap.getOverlays().add(currentOSM);
+                if (osmMap != null) {
+                    osmMap.getController().setZoom(18d);
+                    osmMap.setExpectedCenter(new GeoPoint(pos.latitude, pos.longitude));
+                }
+            } else {
+                currentOSM.setPosition(new GeoPoint(pos.latitude,pos.longitude));
+                osmMap.invalidate();
+            }
+
             current.setSnippet(info);
         }
     }
@@ -256,10 +306,19 @@ public class MainActivity extends FragmentActivity implements OnMapReadyCallback
         } else
             mMap.setMyLocationEnabled(false);
         LatLng lastLatLng = getLastLatLng();
-        if (lastLatLng != null)
-            mMap.moveCamera(CameraUpdateFactory.newLatLngZoom(lastLatLng,19));
-        else
+        if (lastLatLng != null) {
+            mMap.moveCamera(CameraUpdateFactory.newLatLngZoom(lastLatLng, 19));
+            if (osmMap != null) {
+                osmMap.getController().setZoom(19d);
+                osmMap.setExpectedCenter(new GeoPoint(lastLatLng.latitude, lastLatLng.longitude));
+            }
+        } else {
             mMap.moveCamera(CameraUpdateFactory.newLatLng(CENTER_US));
+            if (osmMap != null) {
+                osmMap.getController().setZoom(1d);
+                osmMap.setExpectedCenter(new GeoPoint(CENTER_US.latitude, CENTER_US.longitude));
+            }
+        }
         mapReady = true;
         mMap.getUiSettings().setMapToolbarEnabled(false);
     }

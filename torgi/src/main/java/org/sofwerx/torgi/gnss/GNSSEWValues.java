@@ -6,10 +6,11 @@ import java.util.ArrayList;
  * Single measurement of significant values for determining EW effects for one measurement from one sat
  */
 public class GNSSEWValues {
+    public final static double NA = Double.NaN;
     private static int significantDifferencePercentCN0 = 5;
     private static int significantDifferencePercentAGC = 5;
     private float cn0 = Float.NaN;
-    private double agc = Double.NaN;
+    private double agc = NA;
 
     private GNSSEWValues() {}
 
@@ -90,6 +91,15 @@ public class GNSSEWValues {
      */
     public boolean isAGCDeviationSignificant(GNSSEWValues referenceValue) {
         return Math.abs(getAGCPercentDeviation(referenceValue))>significantDifferencePercentAGC;
+    }
+
+    /**
+     * Is any value in this GNSSEWValues significantly different that the reference
+     * @param referenceValue
+     * @return
+     */
+    public boolean isDeviationSignificant(GNSSEWValues referenceValue) {
+        return isCNODeviationSignificant(referenceValue) || isAGCDeviationSignificant(referenceValue);
     }
 
     /**

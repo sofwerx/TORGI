@@ -22,7 +22,7 @@ public enum Constellation {
         return value;
     }
 
-    public Constellation get(int value) {
+    public static Constellation get(int value) {
         if ((value > 0) && (value < Constellation.values().length)) {
             for (Constellation constellation:Constellation.values()) {
                 if (constellation.value == value)

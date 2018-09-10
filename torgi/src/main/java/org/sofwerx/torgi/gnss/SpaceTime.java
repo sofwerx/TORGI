@@ -1,5 +1,8 @@
 package org.sofwerx.torgi.gnss;
 
+import android.location.Location;
+import android.os.Build;
+
 /**
  * One point in space and time
  */
@@ -16,6 +19,22 @@ public class SpaceTime {
         this.longitude = longitude;
         this.altitude = altitude;
         this.time = time;
+    }
+
+    public SpaceTime(Location loc) {
+        if (loc != null) {
+            this.latitude = loc.getLatitude();
+            this.longitude = loc.getLongitude();
+            if (loc.hasAltitude())
+                this.altitude = loc.getAltitude();
+            if (loc.hasAccuracy())
+                this.horzUncertainty = loc.getAccuracy();
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                if (loc.hasVerticalAccuracy())
+                    this.vertUncertainty = loc.getVerticalAccuracyMeters();
+            }
+            this.time = loc.getTime();
+        }
     }
 
     public SpaceTime(double latitude, double longitude) {

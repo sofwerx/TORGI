@@ -23,8 +23,56 @@ public class EWDetection {
         }
     }
 
-    public void updateBaseline() {
-        //TODO update the baseline discarding any significantly different values
+    /**
+     * Gets all the measurements for one satellite
+     * @param sat
+     * @param discardSignificantDifference true == ignore any measurement that is significantly different from that satellite's baseline
+     * @return vlues or null if none found
+     */
+    public ArrayList<GNSSEWValues> getAllSatMeasurementsForOneSat(Satellite sat, boolean discardSignificantDifference) {
+        ArrayList<GNSSEWValues> values = null;
+        if ((sat != null) && (points != null) && !points.isEmpty()) {
+            values = new ArrayList<>();
+
+            ArrayList<SatMeasurement> measurements;
+            boolean hasBaseline = sat.getBaseline() != null;
+            for (DataPoint pt:points) {
+                measurements = pt.getMeasurements();
+                if ((measurements != null) && !measurements.isEmpty()) {
+                    for (SatMeasurement measurement:measurements) {
+                        if ((measurement.getValues() != null) && sat.equals(measurement.getSat())) {
+                            if (discardSignificantDifference && hasBaseline) {
+                                if (!measurement.getValues().isDeviationSignificant(sat.getBaseline()))
+                                    values.add(measurement.getValues());
+                            } else
+                                values.add(measurement.getValues());
+                        }
+                    }
+                }
+            }
+
+            if (values.isEmpty())
+                values = null;
+        }
+        return values;
+    }
+
+    /**
+     * Updates the baseline for all satellites
+     * @param discardSignificantDifference true = igonore any measurement that is significantly deviated from the baseline
+     */
+    public void updateBaseline(boolean discardSignificantDifference) {
+        if ((points != null) && !points.isEmpty() && (satellites != null) && !satellites.isEmpty()) {
+            for (Satellite sat:satellites) {
+                ArrayList<GNSSEWValues> values;
+                if (sat.getBaseline() == null)
+                    values = getAllSatMeasurementsForOneSat(sat,false);
+                else
+                    values = getAllSatMeasurementsForOneSat(sat,discardSignificantDifference);
+                if ((values != null) && !values.isEmpty())
+                    sat.setBaseline(GNSSEWValues.getAverage(values));
+            }
+        }
     }
 
     public Satellite find(Satellite satellite) {

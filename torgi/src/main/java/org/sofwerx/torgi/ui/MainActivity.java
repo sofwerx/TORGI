@@ -2,6 +2,7 @@ package org.sofwerx.torgi.ui;
 
 import android.Manifest;
 import android.app.AlertDialog;
+import android.content.ActivityNotFoundException;
 import android.content.ComponentName;
 import android.content.Context;
 import android.content.DialogInterface;
@@ -11,10 +12,15 @@ import android.content.SharedPreferences;
 import android.content.pm.PackageManager;
 import android.graphics.Color;
 import android.location.GnssMeasurement;
+import android.location.GnssMeasurementsEvent;
+import android.location.GnssStatus;
+import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
 import android.os.IBinder;
+import android.os.PowerManager;
 import android.preference.PreferenceManager;
+import android.provider.Settings;
 import android.support.v4.app.FragmentActivity;
 import android.support.v4.content.ContextCompat;
 import android.util.Log;
@@ -30,29 +36,22 @@ import android.support.v4.app.ActivityCompat;
 import android.location.Location;
 import android.widget.Toast;
 
-import com.google.android.gms.maps.CameraUpdateFactory;
-import com.google.android.gms.maps.GoogleMap;
-import com.google.android.gms.maps.OnMapReadyCallback;
-import com.google.android.gms.maps.SupportMapFragment;
-import com.google.android.gms.maps.model.BitmapDescriptorFactory;
-import com.google.android.gms.maps.model.LatLng;
-import com.google.android.gms.maps.model.Marker;
-import com.google.android.gms.maps.model.MarkerOptions;
-import com.google.android.gms.maps.model.Polyline;
-import com.google.android.gms.maps.model.PolylineOptions;
-
 import org.osmdroid.util.GeoPoint;
 import org.osmdroid.views.overlay.gestures.RotationGestureOverlay;
+import org.sofwerx.torgi.gnss.Constellation;
+import org.sofwerx.torgi.gnss.LatLng;
 import org.sofwerx.torgi.listener.GnssMeasurementListener;
 import org.sofwerx.torgi.R;
-import org.sofwerx.torgi.SatStatus;
 import org.sofwerx.torgi.service.TorgiService;
 
-public class MainActivity extends FragmentActivity implements OnMapReadyCallback, GnssMeasurementListener {
-    private LatLng CENTER_US = new LatLng(39.181071, -99.938295);
+public class MainActivity extends FragmentActivity implements GnssMeasurementListener {
+    protected static final int REQUEST_DISABLE_BATTERY_OPTIMIZATION = 401;
+    private double CENTER_US_LAT = 39.181071d;
+    private double CENTER_US_LNG =  -99.938295d;
     private final static String TAG = "TORGIact";
     private final static String PREF_LAT = "lat";
     private final static String PREF_LNG = "lng";
+    private final static String PREF_BATTERY_OPT_IGNORE = "nvroptbat";
     private final static int MAX_HISTORY_LENGTH = 50;
     private final static int PERM_REQUEST_CODE = 1;
     private final static SimpleDateFormat fmtTime = new SimpleDateFormat("HH:mm:ss");
@@ -62,14 +61,11 @@ public class MainActivity extends FragmentActivity implements OnMapReadyCallback
     private TextView meas_tv;
     private boolean serviceBound = false;
     private TorgiService torgiService = null;
-    private GoogleMap mMap;
     private org.osmdroid.views.MapView osmMap = null;
-    private boolean mapReady = false;
-    private Marker current = null;
     private org.osmdroid.views.overlay.Marker currentOSM = null;
-    private Polyline historyPolyline = null;
     private org.osmdroid.views.overlay.Polyline historyPolylineOSM = null;
     private ArrayList<LatLng> history = null;
+    private LatLng current = null;
 
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -87,13 +83,11 @@ public class MainActivity extends FragmentActivity implements OnMapReadyCallback
             stat_tv.setText("(rcvr clock measurements unavailable on this platform)");
         }
 
-        SupportMapFragment mapFragment = (SupportMapFragment) getSupportFragmentManager().findFragmentById(R.id.map);
-        mapFragment.getMapAsync(this);
-
         osmMapSetup();
 
         checkPermissions();
         startService();
+        openBatteryOptimizationDialogIfNeeded();
     };
 
     private void osmMapSetup() {
@@ -116,10 +110,10 @@ public class MainActivity extends FragmentActivity implements OnMapReadyCallback
 
     @Override
     public void onPause() {
+        if (torgiService != null)
+            torgiService.setListener(null);
         super.onPause();
         saveLastLocation();
-        if (serviceBound && (torgiService != null))
-            torgiService.setListener(null);
     }
 
     @Override
@@ -151,7 +145,7 @@ public class MainActivity extends FragmentActivity implements OnMapReadyCallback
 
     private void startService() {
         if (serviceBound)
-            torgiService.startGnssRecorder();
+            torgiService.start();
         else {
             startService(new Intent(this, TorgiService.class));
             Intent intent = new Intent(this, TorgiService.class);
@@ -160,23 +154,13 @@ public class MainActivity extends FragmentActivity implements OnMapReadyCallback
     }
 
     private void drawMarker(LatLng pos, String info) {
-        if ((pos != null) && mapReady) {
+        if (pos != null) {
             if (history == null)
                 history = new ArrayList<>();
             history.add(pos);
             if (history.size() > 1) {
                 if (history.size() > MAX_HISTORY_LENGTH)
                     history.remove(0);
-                if (historyPolyline == null) {
-                    PolylineOptions opts = new PolylineOptions();
-                    for (LatLng pt:history) {
-                        opts.add(pt);
-                    }
-                    opts.width(5);
-                    opts.color(Color.YELLOW);
-                    historyPolyline = mMap.addPolyline(opts);
-                } else
-                    historyPolyline.setPoints(history);
 
                 if (historyPolylineOSM == null) {
                     historyPolylineOSM = new org.osmdroid.views.overlay.Polyline();
@@ -191,15 +175,6 @@ public class MainActivity extends FragmentActivity implements OnMapReadyCallback
                     historyPolylineOSM.addPoint(new GeoPoint(pos.latitude,pos.longitude));
             }
 
-            if (current == null) {
-                current = mMap.addMarker(new MarkerOptions()
-                        .position(pos)
-                        .anchor(0.5f,0.5f)
-                        .icon(BitmapDescriptorFactory.fromResource(R.drawable.map_icon))
-                        .title("GPS"));
-                mMap.moveCamera(CameraUpdateFactory.newLatLngZoom(pos, 19));
-            } else
-                current.setPosition(pos);
             if (currentOSM == null) {
                 currentOSM = new org.osmdroid.views.overlay.Marker(osmMap);
                 currentOSM.setPosition(new GeoPoint(pos.latitude,pos.longitude));
@@ -215,8 +190,61 @@ public class MainActivity extends FragmentActivity implements OnMapReadyCallback
                 currentOSM.setPosition(new GeoPoint(pos.latitude,pos.longitude));
                 osmMap.invalidate();
             }
+        }
+    }
 
-            current.setSnippet(info);
+    /**
+     * Request battery optimization exception so that the system doesn't throttle back our app
+     */
+    private void openBatteryOptimizationDialogIfNeeded() {
+        if (isOptimizingBattery() && isAllowAskAboutBattery()) {
+            AlertDialog.Builder builder = new AlertDialog.Builder(this);
+            builder.setTitle(R.string.enable_battery_optimization);
+            builder.setMessage(R.string.battery_optimizations_narrative);
+            builder.setPositiveButton(R.string.battery_optimize_yes, (dialog, which) -> {
+                Intent intent = new Intent(Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS);
+                Uri uri = Uri.parse("package:" + getPackageName());
+                intent.setData(uri);
+                try {
+                    startActivityForResult(intent, REQUEST_DISABLE_BATTERY_OPTIMIZATION);
+                } catch (ActivityNotFoundException e) {
+                    Toast.makeText(this, R.string.does_not_support_battery_optimization, Toast.LENGTH_SHORT).show();
+                }
+            });
+            builder.setOnDismissListener(dialog -> setNeverAskBatteryOptimize());
+            final AlertDialog dialog = builder.create();
+            dialog.setCanceledOnTouchOutside(false);
+            dialog.show();
+        }
+    }
+
+    protected boolean isOptimizingBattery() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+            final PowerManager pm = (PowerManager) getSystemService(POWER_SERVICE);
+            return pm != null && !pm.isIgnoringBatteryOptimizations(getPackageName());
+        } else
+            return false;
+    }
+
+    private boolean isAllowAskAboutBattery() {
+        SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(getApplicationContext());
+        return !prefs.getBoolean(PREF_BATTERY_OPT_IGNORE,false);
+    }
+
+    private void setNeverAskBatteryOptimize() {
+        SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(getApplicationContext());
+        SharedPreferences.Editor edit = prefs.edit();
+        edit.putBoolean(PREF_BATTERY_OPT_IGNORE,true);
+        edit.apply();
+    }
+
+    @Override
+    public void onActivityResult(int requestCode, int resultCode, final Intent data) {
+        super.onActivityResult(requestCode, resultCode, data);
+        switch (requestCode) {
+            case REQUEST_DISABLE_BATTERY_OPTIMIZATION:
+                setNeverAskBatteryOptimize();
+                break;
         }
     }
 
@@ -256,11 +284,11 @@ public class MainActivity extends FragmentActivity implements OnMapReadyCallback
     }
 
     private void saveLastLocation() {
-        if ((current != null) && (current.getPosition() != null)) {
+        if (current != null) {
             SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(getApplicationContext());
             SharedPreferences.Editor edit = prefs.edit();
-            edit.putFloat(PREF_LAT,(float)current.getPosition().latitude);
-            edit.putFloat(PREF_LNG,(float)current.getPosition().longitude);
+            edit.putFloat(PREF_LAT,(float)current.latitude);
+            edit.putFloat(PREF_LNG,(float)current.longitude);
             edit.apply();
         }
     }
@@ -296,83 +324,68 @@ public class MainActivity extends FragmentActivity implements OnMapReadyCallback
     }
 
     @Override
-    public void onMapReady(GoogleMap googleMap) {
-        mMap = googleMap;
-        mMap.setMapType(GoogleMap.MAP_TYPE_HYBRID);
-        mMap.setBuildingsEnabled(false);
-        if (android.os.Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-            if (ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED)
-                mMap.setMyLocationEnabled(false);
-        } else
-            mMap.setMyLocationEnabled(false);
-        LatLng lastLatLng = getLastLatLng();
-        if (lastLatLng != null) {
-            mMap.moveCamera(CameraUpdateFactory.newLatLngZoom(lastLatLng, 19));
-            if (osmMap != null) {
-                osmMap.getController().setZoom(19d);
-                osmMap.setExpectedCenter(new GeoPoint(lastLatLng.latitude, lastLatLng.longitude));
-            }
-        } else {
-            mMap.moveCamera(CameraUpdateFactory.newLatLng(CENTER_US));
-            if (osmMap != null) {
-                osmMap.getController().setZoom(1d);
-                osmMap.setExpectedCenter(new GeoPoint(CENTER_US.latitude, CENTER_US.longitude));
-            }
-        }
-        mapReady = true;
-        mMap.getUiSettings().setMapToolbarEnabled(false);
-    }
+    public void onSatStatusUpdated(final GnssStatus status) {
+        if (status != null) {
+            runOnUiThread(new Runnable() {
+                @Override
+                public void run() {
+                    int numSats = status.getSatelliteCount();
 
-    @Override
-    public void onSatStatusUpdated(final ArrayList<SatStatus> statuses) {
-        runOnUiThread(new Runnable() {
-            @Override
-            public void run() {
-                if ((statuses == null) || statuses.isEmpty())
-                    stat_tv.setVisibility(View.GONE);
-                else {
-                    StringBuffer out = new StringBuffer();
+                    if (numSats == 0)
+                        stat_tv.setVisibility(View.GONE);
+                    else {
+                        StringBuffer out = new StringBuffer();
 
-                    boolean first = true;
-                    for (SatStatus status:statuses) {
-                        if (status.isUsedInFix()) {
-                            if (first)
-                                first = false;
-                            else
-                                out.append('\n');
-                            out.append(status.constellation + status.svid);
+                        boolean first = true;
+                        for (int i = 0; i < numSats; ++i) {
+                            if (status.usedInFix(i)) {
+                                if (first)
+                                    first = false;
+                                else
+                                    out.append('\n');
+                                out.append(Constellation.get(status.getConstellationType(i)).name() + status.getSvid(i));
+                            }
                         }
-                    }
 
-                    stat_tv.setText(out.toString());
-                    stat_tv.setVisibility(View.VISIBLE);
+                        stat_tv.setText(out.toString());
+                        stat_tv.setVisibility(View.VISIBLE);
+                    }
                 }
-            }
-        });
+            });
+        }
     }
 
     @Override
-    public void onGnssMeasurementReceived(final Collection<GnssMeasurement> measurements) {
-        runOnUiThread(new Runnable() {
-            @Override
-            public void run() {
-                if ((measurements == null) || measurements.isEmpty())
-                    meas_tv.setVisibility(View.GONE);
-                else {
-                    StringBuffer out = new StringBuffer();
-                    boolean first = true;
-                    for (GnssMeasurement measurement:measurements) {
-                        if (first)
-                            first = false;
-                        else
-                            out.append('\n');
-                        out.append(measurement.toString());
-                    }
-                    meas_tv.setText(out.toString());
-                    meas_tv.setVisibility(View.VISIBLE);
+    public void onGnssMeasurementReceived(GnssMeasurementsEvent event) {
+        if (event != null) {
+            Collection<GnssMeasurement> measurements = event.getMeasurements();
+            final String values;
+            if ((measurements == null) || measurements.isEmpty())
+                values = null;
+            else {
+                StringBuffer out = new StringBuffer();
+                boolean first = true;
+                for (GnssMeasurement measurement : measurements) {
+                    if (first)
+                        first = false;
+                    else
+                        out.append('\n');
+                    out.append(measurement.toString());
                 }
+                values = out.toString();
             }
-        });
+            runOnUiThread(new Runnable() {
+                @Override
+                public void run() {
+                    if (values == null)
+                        meas_tv.setVisibility(View.GONE);
+                    else {
+                        meas_tv.setText(values);
+                        meas_tv.setVisibility(View.VISIBLE);
+                    }
+                }
+            });
+        }
     }
 
     @Override
@@ -397,7 +410,7 @@ public class MainActivity extends FragmentActivity implements OnMapReadyCallback
                         out.append("VerticalAccuracy: " + String.valueOf(loc.getVerticalAccuracyMeters()) + "\n");
                 }
 
-                String txt = out.toString() + "\n" + (serviceBound?torgiService.getGpkgFilename():"") + "       SDK v" + Build.VERSION.SDK_INT;
+                String txt = out.toString() + "\n" + (serviceBound?torgiService.getGeoPackageRecorder().getGpkgFilename():"") + "       SDK v" + Build.VERSION.SDK_INT;
                 cur_tv.setText(txt);
                 drawMarker(new LatLng(loc.getLatitude(), loc.getLongitude()),fmtTime.format(loc.getTime())+", ±"+(loc.hasAccuracy()?fmtAccuracy.format(loc.getAccuracy()):"")+"m");
             }

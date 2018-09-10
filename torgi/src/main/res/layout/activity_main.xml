@@ -14,12 +14,6 @@
         android:layout_height="wrap_content"
         android:padding="4dp"/>
 
-    <org.osmdroid.views.MapView
-        android:id="@+id/maposm"
-        android:layout_width="match_parent"
-        android:layout_height="200dp"
-        tilesource="openstreetmaps" />
-
     <ScrollView
         android:layout_width="match_parent"
         android:layout_height="0dp"
@@ -72,13 +66,12 @@
             </LinearLayout>
         </ScrollView>
 
-        <fragment xmlns:android="http://schemas.android.com/apk/res/android"
-            android:id="@+id/map"
-            android:name="com.google.android.gms.maps.SupportMapFragment"
+        <org.osmdroid.views.MapView
+            android:id="@+id/maposm"
             android:layout_height="match_parent"
             android:layout_width="0dp"
             android:layout_weight="0.5"
-            tools:context=".ui.MainActivity" />
+            tilesource="openstreetmaps" />
     </LinearLayout>
 
 </LinearLayout>

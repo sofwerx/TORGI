@@ -36,6 +36,7 @@ dependencies {
     //implementation fileTree(include: ['*.jar'], dir: 'libs')
     //implementation project(':geopackage-sdk')
 
+    implementation 'com.github.PhilJay:MPAndroidChart:v3.0.3' //for charts
     implementation 'org.osmdroid:osmdroid-android:6.0.2'
     implementation 'mil.nga.geopackage:geopackage-android:3.0.2'
     implementation 'com.android.support:appcompat-v7:27.1.1'

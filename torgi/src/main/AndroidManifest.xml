@@ -22,12 +22,20 @@
 
         <activity
             android:name=".ui.MainActivity"
-            android:label="@string/app_name"
-            android:theme="@style/AppTheme.NoActionBar">
+            android:label="@string/app_name">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
+            <!--android:theme="@style/AppTheme.NoActionBar">-->
+        </activity>
+        <activity
+            android:name=".ui.MonitorActivity"
+            android:label="TORGI Monitor">
+        </activity>
+        <activity
+            android:name=".ui.AboutActivity"
+            android:label="@string/about">
         </activity>
     </application>
 </manifest>

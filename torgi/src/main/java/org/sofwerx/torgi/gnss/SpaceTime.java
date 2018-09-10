@@ -22,7 +22,9 @@ public class SpaceTime {
     }
 
     public SpaceTime(Location loc) {
-        if (loc != null) {
+        if (loc == null) {
+            this.time = System.currentTimeMillis();
+        } else {
             this.latitude = loc.getLatitude();
             this.longitude = loc.getLongitude();
             if (loc.hasAltitude())

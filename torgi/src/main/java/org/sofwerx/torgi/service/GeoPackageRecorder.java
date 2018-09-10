@@ -271,7 +271,7 @@ public class GeoPackageRecorder extends HandlerThread {
 
                         satrow.setValue("svid", g.getSvid());
                         satrow.setValue("constellation", con);
-                        satrow.setValue("cn0", (double) g.getCn0DbHz());
+                        satrow.setValue("cn0", g.getCn0DbHz());
 
                         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
                             if (g.hasAutomaticGainControlLevelDb()) {

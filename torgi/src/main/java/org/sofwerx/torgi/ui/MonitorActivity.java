@@ -1,7 +1,6 @@
 package org.sofwerx.torgi.ui;
 
 import android.Manifest;
-import android.app.Activity;
 import android.app.AlertDialog;
 import android.content.ActivityNotFoundException;
 import android.content.ComponentName;
@@ -15,6 +14,7 @@ import android.graphics.Color;
 import android.location.GnssMeasurement;
 import android.location.GnssMeasurementsEvent;
 import android.location.GnssStatus;
+import android.location.Location;
 import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
@@ -22,37 +22,54 @@ import android.os.IBinder;
 import android.os.PowerManager;
 import android.preference.PreferenceManager;
 import android.provider.Settings;
+import android.support.v4.app.ActivityCompat;
 import android.support.v4.app.FragmentActivity;
 import android.support.v4.content.ContextCompat;
 import android.util.Log;
 import android.view.Menu;
 import android.view.MenuInflater;
 import android.view.MenuItem;
-import android.view.View;
 import android.widget.TextView;
+import android.widget.Toast;
+
+import com.github.mikephil.charting.charts.CombinedChart;
+import com.github.mikephil.charting.components.Legend;
+import com.github.mikephil.charting.components.XAxis;
+import com.github.mikephil.charting.components.YAxis;
+import com.github.mikephil.charting.data.BarData;
+import com.github.mikephil.charting.data.BarDataSet;
+import com.github.mikephil.charting.data.BarEntry;
+import com.github.mikephil.charting.data.CombinedData;
+import com.github.mikephil.charting.data.Entry;
+import com.github.mikephil.charting.data.LineData;
+import com.github.mikephil.charting.data.LineDataSet;
+
+import org.osmdroid.util.GeoPoint;
+import org.osmdroid.views.overlay.gestures.RotationGestureOverlay;
+import org.sofwerx.torgi.R;
+import org.sofwerx.torgi.gnss.Constellation;
+import org.sofwerx.torgi.gnss.DataPoint;
+import org.sofwerx.torgi.gnss.GNSSEWValues;
+import org.sofwerx.torgi.gnss.LatLng;
+import org.sofwerx.torgi.gnss.SatMeasurement;
+import org.sofwerx.torgi.gnss.Satellite;
+import org.sofwerx.torgi.gnss.SpaceTime;
+import org.sofwerx.torgi.listener.GnssMeasurementListener;
+import org.sofwerx.torgi.service.TorgiService;
 
 import java.text.DecimalFormat;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Collection;
 
-import android.support.v4.app.ActivityCompat;
-import android.location.Location;
-import android.widget.Toast;
-
-import org.osmdroid.util.GeoPoint;
-import org.osmdroid.views.overlay.gestures.RotationGestureOverlay;
-import org.sofwerx.torgi.gnss.Constellation;
-import org.sofwerx.torgi.gnss.LatLng;
-import org.sofwerx.torgi.listener.GnssMeasurementListener;
-import org.sofwerx.torgi.R;
-import org.sofwerx.torgi.service.TorgiService;
-
-public class MainActivity extends Activity implements GnssMeasurementListener {
+public class MonitorActivity extends FragmentActivity implements GnssMeasurementListener {
     protected static final int REQUEST_DISABLE_BATTERY_OPTIMIZATION = 401;
+    private final static long MAX_CHART_UPDATE_RATE = 500l;
+    private long lastChartUpdate = Long.MIN_VALUE;
+    private float chartIndex = 0f;
     private double CENTER_US_LAT = 39.181071d;
     private double CENTER_US_LNG =  -99.938295d;
-    private final static String TAG = "TORGIact";
+    private final static String TAG = "TORGI.monitor";
     private final static String PREF_LAT = "lat";
     private final static String PREF_LNG = "lng";
     private final static String PREF_BATTERY_OPT_IGNORE = "nvroptbat";
@@ -60,9 +77,6 @@ public class MainActivity extends Activity implements GnssMeasurementListener {
     private final static int PERM_REQUEST_CODE = 1;
     private final static SimpleDateFormat fmtTime = new SimpleDateFormat("HH:mm:ss");
     private final static DecimalFormat fmtAccuracy = new DecimalFormat("#.##");
-    private TextView stat_tv;
-    private TextView cur_tv;
-    private TextView meas_tv;
     private boolean serviceBound = false;
     private TorgiService torgiService = null;
     private org.osmdroid.views.MapView osmMap = null;
@@ -70,27 +84,18 @@ public class MainActivity extends Activity implements GnssMeasurementListener {
     private org.osmdroid.views.overlay.Polyline historyPolylineOSM = null;
     private ArrayList<LatLng> history = null;
     private LatLng current = null;
+    private CombinedChart chartEW = null;
+    private CombinedData chartData = null;
+    private TextView textOverview;
+
+    private LineDataSet setCN0 = null;
+    private BarDataSet setAGC = null;
+    private Location currentLoc = null;
 
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-        setContentView(R.layout.activity_main);
-        stat_tv = findViewById(R.id.status_text);
-        cur_tv = findViewById(R.id.current_text);
-        meas_tv = findViewById(R.id.measurement_text);
-        View buttonMonitor = findViewById(R.id.mainButtonMonitor);
-        buttonMonitor.setOnClickListener(v -> {
-            startActivity(new Intent(MainActivity.this, MonitorActivity.class));
-            finish();
-        });
-
-        meas_tv.setText("Acquiring satellites...\n", TextView.BufferType.EDITABLE);
-        stat_tv.setText("Acquiring satellites...\n", TextView.BufferType.EDITABLE);
-        cur_tv.setText("Acquiring satellites...\n", TextView.BufferType.EDITABLE);
-
-        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) {
-            meas_tv.setText("(individual sat measurements unavailable on this platform)");
-            stat_tv.setText("(rcvr clock measurements unavailable on this platform)");
-        }
+        setContentView(R.layout.activity_monitor);
+        textOverview = findViewById(R.id.monitorTextOverview);
 
         osmMapSetup();
 
@@ -98,6 +103,97 @@ public class MainActivity extends Activity implements GnssMeasurementListener {
         startService();
         openBatteryOptimizationDialogIfNeeded();
     };
+
+    private void setupEWchart(Entry entryCNO, BarEntry entryAGC) {
+        if ((chartEW == null) && (entryCNO != null) && (entryAGC != null)) {
+            ArrayList<Entry> entriesCNO = new ArrayList<>();
+            ArrayList<BarEntry> entriesAGC = new ArrayList<>();
+            entriesCNO.add(entryCNO);
+            entriesAGC.add(entryAGC);
+
+            chartEW = findViewById(R.id.chartEW);
+            chartEW.getDescription().setEnabled(false);
+            chartEW.setBackgroundColor(Color.BLACK);
+            chartEW.setDrawGridBackground(false);
+            chartEW.setDrawBarShadow(false);
+            chartEW.setHighlightFullBarEnabled(false);
+            chartEW.setPinchZoom(false);
+            // draw bars behind lines
+            //chartEW.setDrawOrder(new CombinedChart.DrawOrder[]{CombinedChart.DrawOrder.BAR, CombinedChart.DrawOrder.BUBBLE, CombinedChart.DrawOrder.CANDLE, CombinedChart.DrawOrder.LINE, CombinedChart.DrawOrder.SCATTER});
+            chartEW.setDrawOrder(new CombinedChart.DrawOrder[]{CombinedChart.DrawOrder.BAR, CombinedChart.DrawOrder.LINE});
+
+            Legend l = chartEW.getLegend();
+            l.setWordWrapEnabled(true);
+            l.setVerticalAlignment(Legend.LegendVerticalAlignment.BOTTOM);
+            l.setHorizontalAlignment(Legend.LegendHorizontalAlignment.CENTER);
+            l.setOrientation(Legend.LegendOrientation.HORIZONTAL);
+            l.setDrawInside(false);
+            l.setTextColor(Color.WHITE);
+
+            YAxis rightAxis = chartEW.getAxisRight(); //AGC
+            rightAxis.setDrawGridLines(false);
+            rightAxis.setAxisMinimum(-1f);
+            rightAxis.setAxisMaximum(5f);
+            rightAxis.setTextColor(getColor(R.color.agc));
+            rightAxis.setDrawLabels(true);
+            rightAxis.setValueFormatter((value, axis) -> (int) value + "dB");
+
+            YAxis leftAxis = chartEW.getAxisLeft(); //CNO
+            leftAxis.setDrawGridLines(false);
+            leftAxis.setAxisMinimum(10f);
+            leftAxis.setAxisMaximum(40f);
+            leftAxis.setTextColor(Color.rgb(255, 150, 150));
+            leftAxis.setValueFormatter((value, axis) -> (int) value + "dB-Hz");
+
+            XAxis xAxis = chartEW.getXAxis();
+            xAxis.setPosition(XAxis.XAxisPosition.BOTH_SIDED);
+            //xAxis.setAxisMinimum(0f);
+            //xAxis.setGranularity(1f);
+
+            chartData = new CombinedData();
+
+            chartData.setData(generateLineData(entriesCNO));
+            chartData.setData(generateBarData(entriesAGC));
+            //data.setValueTypeface(mTfLight);
+
+            //xAxis.setAxisMaximum(data.getXMax() + 0.25f);
+
+            chartEW.setData(chartData);
+            //chartEW.invalidate();
+        }
+    }
+
+    private LineData generateLineData(ArrayList<Entry> entriesCNO) {
+        LineData d = new LineData();
+
+        setCN0 = new LineDataSet(entriesCNO, "Avg C/N₀");
+        setCN0.setColor(getColor(R.color.cn0));
+        setCN0.setLineWidth(2.5f);
+        setCN0.setMode(LineDataSet.Mode.CUBIC_BEZIER);
+        setCN0.setDrawValues(false);
+        setCN0.setDrawCircles(false);
+        //setCN0.setValueTextSize(10f);
+        //setCN0.setValueTextColor(getColor(R.color.cn0));
+        setCN0.setAxisDependency(YAxis.AxisDependency.LEFT);
+        d.addDataSet(setCN0);
+
+        return d;
+    }
+
+    private BarData generateBarData(ArrayList<BarEntry> entriesAGC) {
+        BarData d = new BarData();
+
+        setAGC = new BarDataSet(entriesAGC, "Avg AGC");
+        setAGC.setColor(getColor(R.color.agc));
+        setAGC.setDrawIcons(false);
+        setAGC.setDrawValues(false);
+        //setAGC.setValueTextColor(getColor(R.color.agc));
+        //setAGC.setValueTextSize(10f);
+        setAGC.setAxisDependency(YAxis.AxisDependency.RIGHT);
+
+        d.addDataSet(setAGC);
+        return d;
+    }
 
     private void osmMapSetup() {
         osmMap = findViewById(R.id.maposm);
@@ -150,8 +246,13 @@ public class MainActivity extends Activity implements GnssMeasurementListener {
     @Override
     public void onStop() {
         super.onStop();
-        if (serviceBound && (torgiService != null))
-            unbindService(mConnection);
+        if (serviceBound && (torgiService != null)) {
+            try {
+                unbindService(mConnection);
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
+        }
     }
 
     protected ServiceConnection mConnection = new ServiceConnection() {
@@ -202,8 +303,11 @@ public class MainActivity extends Activity implements GnssMeasurementListener {
                     historyPolylineOSM.setPoints(list);
                     historyPolylineOSM.setColor(Color.YELLOW);
                     osmMap.getOverlays().add(historyPolylineOSM);
-                } else
-                    historyPolylineOSM.addPoint(new GeoPoint(pos.latitude,pos.longitude));
+                } else {
+                    historyPolylineOSM.addPoint(new GeoPoint(pos.latitude, pos.longitude));
+                    if (historyPolylineOSM.getPoints().size() > MAX_HISTORY_LENGTH)
+                        historyPolylineOSM.getPoints().remove(0);
+                }
             }
 
             if (currentOSM == null) {
@@ -211,7 +315,7 @@ public class MainActivity extends Activity implements GnssMeasurementListener {
                 currentOSM.setPosition(new GeoPoint(pos.latitude,pos.longitude));
                 currentOSM.setAnchor(org.osmdroid.views.overlay.Marker.ANCHOR_CENTER,org.osmdroid.views.overlay.Marker.ANCHOR_CENTER);
                 currentOSM.setIcon(getResources().getDrawable(R.drawable.map_icon));
-                currentOSM.setTitle("GNSS Fix");
+                currentOSM.setTitle("GPS");
                 osmMap.getOverlays().add(currentOSM);
                 if (osmMap != null) {
                     osmMap.getController().setZoom(18d);
@@ -344,12 +448,12 @@ public class MainActivity extends Activity implements GnssMeasurementListener {
                     public void onClick(DialogInterface dialog, int which) {
                         if (serviceBound && (torgiService != null))
                             torgiService.shutdown();
-                        MainActivity.this.finish();
+                        MonitorActivity.this.finish();
                     }
                 })
                 .setPositiveButton(R.string.quit_run_in_background, new DialogInterface.OnClickListener() {
                     public void onClick(DialogInterface arg0, int arg1) {
-                        MainActivity.this.finish();
+                        MonitorActivity.this.finish();
                     }
                 }).create().show();
     }
@@ -360,27 +464,7 @@ public class MainActivity extends Activity implements GnssMeasurementListener {
             runOnUiThread(new Runnable() {
                 @Override
                 public void run() {
-                    int numSats = status.getSatelliteCount();
-
-                    if (numSats == 0)
-                        stat_tv.setVisibility(View.GONE);
-                    else {
-                        StringBuffer out = new StringBuffer();
-
-                        boolean first = true;
-                        for (int i = 0; i < numSats; ++i) {
-                            if (status.usedInFix(i)) {
-                                if (first)
-                                    first = false;
-                                else
-                                    out.append('\n');
-                                out.append(Constellation.get(status.getConstellationType(i)).name() + status.getSvid(i));
-                            }
-                        }
-
-                        stat_tv.setText(out.toString());
-                        stat_tv.setVisibility(View.VISIBLE);
-                    }
+                    //TODO
                 }
             });
         }
@@ -388,32 +472,67 @@ public class MainActivity extends Activity implements GnssMeasurementListener {
 
     @Override
     public void onGnssMeasurementReceived(GnssMeasurementsEvent event) {
-        if (event != null) {
-            Collection<GnssMeasurement> measurements = event.getMeasurements();
-            final String values;
-            if ((measurements == null) || measurements.isEmpty())
-                values = null;
-            else {
-                StringBuffer out = new StringBuffer();
-                boolean first = true;
-                for (GnssMeasurement measurement : measurements) {
-                    if (first)
-                        first = false;
-                    else
-                        out.append('\n');
-                    out.append(measurement.toString());
-                }
-                values = out.toString();
-            }
-            runOnUiThread(new Runnable() {
-                @Override
-                public void run() {
-                    if (values == null)
-                        meas_tv.setVisibility(View.GONE);
-                    else {
-                        meas_tv.setText(values);
-                        meas_tv.setVisibility(View.VISIBLE);
+        if (System.currentTimeMillis() > lastChartUpdate + MAX_CHART_UPDATE_RATE) {
+            if (event != null) {
+                final Collection<GnssMeasurement> measurements = event.getMeasurements();
+                if (measurements != null) {
+                    lastChartUpdate = System.currentTimeMillis();
+                    DataPoint dp = new DataPoint(new SpaceTime(currentLoc));
+                    for (GnssMeasurement measurement : measurements) {
+                        Satellite sat = new Satellite(Constellation.get(measurement.getConstellationType()), measurement.getSvid());
+                        SatMeasurement satMeasurement;
+                        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O)
+                            satMeasurement = new SatMeasurement(sat, new GNSSEWValues((float) measurement.getCn0DbHz(), measurement.getAutomaticGainControlLevelDb()));
+                        else
+                            satMeasurement = new SatMeasurement(sat, new GNSSEWValues((float) measurement.getCn0DbHz(), GNSSEWValues.NA));
+                        dp.add(satMeasurement);
                     }
+                    GNSSEWValues avg = dp.getAverageMeasurements();
+                    if (avg != null)
+                        addChartEntry(dp.getSpaceTime().getTime(), avg);
+                }
+            }
+        }
+    }
+
+    private void addChartEntry(final long time, final GNSSEWValues values) {
+        if ((time > 0l) && (values != null)) {
+            runOnUiThread(() -> {
+                Log.d(TAG,"Chart update #"+(int)chartIndex);
+                Entry entryCN0 = null;
+                BarEntry entryAGC = null;
+                boolean updatedAGC = false;
+                boolean updatedCN0 = false;
+                if (!Double.isNaN(values.getAgc())) {
+                    //entryAGC = new BarEntry((float) time, (float) values.getAgc());
+                    entryAGC = new BarEntry(chartIndex, (float) values.getAgc());
+                    if (setAGC != null) {
+                        setAGC.addEntry(entryAGC);
+                        if (setAGC.getValues().size() > MAX_HISTORY_LENGTH)
+                            setAGC.removeFirst();
+                        setAGC.notifyDataSetChanged();
+                    }
+                    updatedAGC = true;
+                }
+                if (!Float.isNaN(values.getCn0())) {
+                    //entryCN0 = new Entry((float)time,values.getCn0());
+                    entryCN0 = new Entry(chartIndex,values.getCn0());
+                    if (setCN0 != null) {
+                        setCN0.addEntry(entryCN0);
+                        if (setCN0.getValues().size() > MAX_HISTORY_LENGTH)
+                            setCN0.removeFirst();
+                        setCN0.notifyDataSetChanged();
+                    }
+                    updatedCN0 = true;
+                }
+                if ((chartEW == null) && updatedAGC && updatedCN0) {
+                    setupEWchart(entryCN0,entryAGC);
+                }
+                if (updatedAGC || updatedCN0) {
+                    chartData.notifyDataChanged();
+                    chartEW.notifyDataSetChanged();
+                    chartEW.invalidate();
+                    chartIndex += 1f;
                 }
             });
         }
@@ -422,36 +541,25 @@ public class MainActivity extends Activity implements GnssMeasurementListener {
     @Override
     public void onLocationChanged(final Location loc) {
         runOnUiThread(() -> {
-            StringBuffer out = new StringBuffer();
-
-            out.append("Lat: "+ String.valueOf(loc.getLatitude()) + "\n");
-            out.append("Lon: " + String.valueOf(loc.getLongitude()) + "\n");
-            out.append("Alt: " + String.valueOf(loc.getAltitude()) + "\n");
-            out.append("Provider: " + String.valueOf(loc.getProvider()) + "\n");
-            out.append("Time: " + fmtTime.format(loc.getTime()) + "\n");
-            int sats = loc.getExtras().getInt("satellites");
-            if (sats > 0)
-                out.append("FixSatCount: " + String.valueOf(sats) + "\n");
-            if (loc.hasAccuracy())
-                out.append("RadialAccuracy: " + String.valueOf(loc.getAccuracy()) + "\n");
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                if (loc.hasVerticalAccuracy())
-                    out.append("VerticalAccuracy: " + String.valueOf(loc.getVerticalAccuracyMeters()) + "\n");
-            }
-
-            String txt = out.toString() + "\n" + (serviceBound?torgiService.getGeoPackageRecorder().getGpkgFilename():"") + "       SDK v" + Build.VERSION.SDK_INT;
-            cur_tv.setText(txt);
+            currentLoc = loc;
             drawMarker(new LatLng(loc.getLatitude(), loc.getLongitude()),fmtTime.format(loc.getTime())+", ±"+(loc.hasAccuracy()?fmtAccuracy.format(loc.getAccuracy()):"")+"m");
+            int sats = loc.getExtras().getInt("satellites");
+            StringBuffer label = new StringBuffer();
+            if (sats > 0)
+                label.append(sats+" satellites in fix");
+            if (loc.hasAccuracy()) {
+                if (sats > 0)
+                    label.append(", ");
+                label.append("±" + (int)loc.getAccuracy() + "m");
+            }
+            textOverview.setText(label.toString());
         });
     }
 
     @Override
     public void onProviderChanged(final String provider, final boolean enabled) {
-        runOnUiThread(new Runnable() {
-            @Override
-            public void run() {
-                cur_tv.setText(provider+": "+(enabled?"Enabled":"Disabled"));
-            }
+        runOnUiThread(() -> {
+            //TODO
         });
     }
 }

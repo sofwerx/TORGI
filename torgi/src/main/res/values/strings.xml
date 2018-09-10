@@ -1,4 +1,21 @@
 <resources>
     <string name="app_name">TORGI</string>
+    <string name="notification">TORGI is collecting data...</string>
     <string name="action_settings">Settings</string>
+    <string name="quit_torgi">Quit TORGI?</string>
+    <string name="measurement">Measurements:</string>
+    <string name="used_in_fix">Used in current fix:</string>
+    <string name="quit_torgi_narrative">Do you want to shutdown TORGI or do you want TORGI to keep collecting data in the background?</string>
+    <string name="quit_yes">Shutdown</string>
+    <string name="quit_run_in_background">Run in background</string>
+    <string name="does_not_support_battery_optimization">This device does not support battery optimization.</string>
+    <string name="enable_battery_optimization">Settings adjustment recommended</string>
+    <string name="battery_optimizations_narrative">Can I turn off battery optimization for TORGI? This will allow better updates from sensors but will drain the battery a bit more.</string>
+    <string name="battery_optimize_yes">Ok</string>
+
+    <!-- About -->
+    <string name="legal">Legal</string>
+    <string name="acknowledgements">Acknowledgements</string>
+    <string name="licenses">Licenses</string>
+    <string name="copyright">©2018 SOFWERX, all rights reserved</string>
 </resources>

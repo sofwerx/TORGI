@@ -1,62 +1,92 @@
 <?xml version="1.0" encoding="utf-8"?>
-<android.support.design.widget.CoordinatorLayout xmlns:android="http://schemas.android.com/apk/res/android"
-    xmlns:app="http://schemas.android.com/apk/res-auto"
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools"
-    android:id="@+id/main_layout"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
+    android:orientation="vertical"
     android:theme="@style/AppTheme"
-    tools:context=".MainActivity">
+    tools:context=".ui.MainActivity">
 
-    <android.support.design.widget.AppBarLayout
-        android:id="@+id/main_appbar"
+    <RelativeLayout
         android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:theme="@style/AppTheme">
+        android:layout_height="wrap_content">
 
-        <android.support.v7.widget.Toolbar
-            android:id="@+id/main_toolbar"
+        <TextView
+            android:id="@+id/current_text"
             android:layout_width="match_parent"
-            android:layout_height="?attr/actionBarSize"
-            android:theme="@style/AppTheme" />
+            android:layout_height="wrap_content"
+            android:layout_alignParentTop="true"
+            android:text="GNSS location summary"
+            android:padding="4dp"/>
 
-    </android.support.design.widget.AppBarLayout>
+        <ImageView
+            android:id="@+id/mainButtonMonitor"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_alignParentEnd="true"
+            android:layout_alignParentTop="true"
+            android:src="@drawable/icon_monitor" />
 
-    <TextView
-        android:id="@+id/measurement_text"
+    </RelativeLayout>
+
+    <ScrollView
         android:layout_width="match_parent"
-        android:layout_height="200dp"
-        android:layout_marginTop="460dp"
-        android:isScrollContainer="true"
-        android:maxHeight="190dp"
-        android:scrollIndicators="right"
-        android:scrollbarAlwaysDrawVerticalTrack="true"
-        android:scrollbars="vertical"
-        android:theme="@style/AppTheme" />
+        android:layout_height="0dp"
+        android:layout_weight="0.5"
+        android:padding="4dp">
 
-    <TextView
-        android:id="@+id/status_text"
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical">
+
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="@string/measurement"
+                android:textStyle="bold" />
+            <TextView
+                android:id="@+id/measurement_text"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content" />
+        </LinearLayout>
+    </ScrollView>
+
+    <LinearLayout
         android:layout_width="match_parent"
-        android:layout_height="200dp"
-        android:layout_marginTop="260dp"
-        android:isScrollContainer="true"
-        android:maxHeight="190dp"
-        android:scrollIndicators="right"
-        android:scrollbarAlwaysDrawVerticalTrack="true"
-        android:scrollbars="vertical"
-        android:theme="@style/AppTheme"
-        app:layout_anchor="@+id/status_text" />
+        android:layout_height="0dp"
+        android:layout_weight="0.5"
+        android:orientation="horizontal"
+        android:padding="4dp">
 
-    <TextView
-        android:id="@+id/current_text"
-        android:layout_width="match_parent"
-        android:layout_height="200dp"
-        android:layout_marginTop="60dp"
-        android:isScrollContainer="true"
-        android:maxHeight="190dp"
-        android:scrollIndicators="right"
-        android:scrollbarAlwaysDrawVerticalTrack="true"
-        android:scrollbars="vertical"
-        android:theme="@style/AppTheme" />
+        <ScrollView
+            android:layout_height="match_parent"
+            android:layout_width="0dp"
+            android:layout_weight="0.5">
 
-</android.support.design.widget.CoordinatorLayout>
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical">
+
+                <TextView
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="@string/used_in_fix"
+                    android:textStyle="bold" />
+                <TextView
+                    android:id="@+id/status_text"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content" />
+            </LinearLayout>
+        </ScrollView>
+
+        <org.osmdroid.views.MapView
+            android:id="@+id/maposm"
+            android:layout_height="match_parent"
+            android:layout_width="0dp"
+            android:layout_weight="0.5"
+            tilesource="openstreetmaps" />
+    </LinearLayout>
+
+</LinearLayout>

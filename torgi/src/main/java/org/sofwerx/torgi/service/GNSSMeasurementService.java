@@ -39,6 +39,7 @@ public class GNSSMeasurementService extends Thread {
             Log.d(TAG,"GNSSMeasurementService - periodicHelper");
             if (System.currentTimeMillis() > lastBaselineUpdate + BASELINE_UPDATE_INTERVAL) {
                 ewDetection.updateBaseline(true);
+                ewDetection.emptyDataPoints();
                 lastBaselineUpdate = System.currentTimeMillis();
                 Log.d(TAG,"GNSS measurement baseline updated");
             }

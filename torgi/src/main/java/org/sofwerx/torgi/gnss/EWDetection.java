@@ -6,6 +6,7 @@ import java.util.ArrayList;
  * Collects EW indicator levels and provides estimates on likelihood of EW activity
  */
 public class EWDetection {
+    private final static int MAX_POINT_STORAGE = 50;
     private ArrayList<DataPoint> points = null;
     private ArrayList<Satellite> satellites = null;
 
@@ -20,7 +21,18 @@ public class EWDetection {
                     update(meas.getSat());
                 }
             }
+            if (points.size() > MAX_POINT_STORAGE)
+                points.remove(0);
         }
+    }
+
+    /**
+     * Clears out the old data points, but not the stored satellite information; helpful as a way
+     * to refresh totals after recalculating a baseline
+     */
+    public void emptyDataPoints() {
+        if (points != null)
+            points = new ArrayList<>();
     }
 
     /**

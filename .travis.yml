@@ -14,8 +14,10 @@ script:
 - export COMPOSE_PROJECT_NAME=swxvmhost
 - make
 - ls -la
-- cp torgi-debug.apk torgi-debug_${TRAVIS_TAG}.apk
-- cp torgi-release-unsigned.apk torgi-release-unsigned_${TRAVIS_TAG}.apk
+- cp torgi-logger-debug.apk torgi-logger-debug_${TRAVIS_TAG}.apk
+- cp torgi-logger-release-unsigned.apk torgi-logger-release-unsigned_${TRAVIS_TAG}.apk
+- cp torgi-viewer-debug.apk torgi-viewer-debug_${TRAVIS_TAG}.apk
+- cp torgi-viewer-release-unsigned.apk torgi-viewer-release-unsigned_${TRAVIS_TAG}.apk
 after_success:
 - docker login -u="$DOCKER_USERNAME" -p="$DOCKER_PASSWORD"
 - docker push sofwerx/torgi:${TRAVIS_TAG}
@@ -28,8 +30,10 @@ deploy:
   skip_cleanup: true
   api_key: "${GITHUB_TOKEN}"
   file:
-  - torgi-debug_${TRAVIS_TAG}.apk
-  - torgi-release-unsigned_${TRAVIS_TAG}.apk
+  - torgi-logger-debug_${TRAVIS_TAG}.apk
+  - torgi-logger-release-unsigned_${TRAVIS_TAG}.apk
+  - torgi-viewer-debug_${TRAVIS_TAG}.apk
+  - torgi-viewer-release-unsigned_${TRAVIS_TAG}.apk
   on:
     tags: true
     repo: "${TRAVIS_REPO_SLUG}"

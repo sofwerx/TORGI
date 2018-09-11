@@ -1,0 +1,12 @@
+<resources>
+    <string name="app_name">TORGI Viewer</string>
+    <string name="action_settings">Settings</string>
+    <string name="measurement">Measurements:</string>
+    <string name="used_in_fix">Used in current fix:</string>
+
+    <!-- About -->
+    <string name="legal">Legal</string>
+    <string name="acknowledgements">Acknowledgements</string>
+    <string name="licenses">Licenses</string>
+    <string name="copyright">©2018 SOFWERX, all rights reserved</string>
+</resources>

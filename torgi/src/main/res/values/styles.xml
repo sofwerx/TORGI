@@ -15,9 +15,9 @@
         <item name="android:statusBarColor">@android:color/background_dark</item>
     </style>
 
-    <style name="AppTheme.NoActionBar">
+    <!--<style name="AppTheme.NoActionBar">
         <item name="windowActionBar">false</item>
         <item name="windowNoTitle">true</item>
-    </style>
+    </style>-->
 
 </resources>

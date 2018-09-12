@@ -7,6 +7,7 @@ import android.app.NotificationManager;
 import android.app.PendingIntent;
 import android.app.Service;
 import android.content.Intent;
+import android.content.SharedPreferences;
 import android.content.pm.PackageManager;
 import android.hardware.SensorEvent;
 import android.location.GnssMeasurementsEvent;
@@ -18,6 +19,7 @@ import android.os.Binder;
 import android.os.Build;
 import android.os.Bundle;
 import android.os.IBinder;
+import android.preference.PreferenceManager;
 import android.support.annotation.Nullable;
 import android.support.annotation.RequiresApi;
 import android.support.v4.content.ContextCompat;
@@ -39,6 +41,7 @@ public class TorgiService extends Service {
     private final static int TORGI_NOTIFICATION_ID = 1;
     private final static String NOTIFICATION_CHANNEL = "torgi_report";
     public final static String ACTION_STOP = "STOP";
+    public final static String PREFS_BIG_DATA = "bigdata";
     private GNSSMeasurementService gnssMeasurementService = null;
     private GeoPackageRecorder geoPackageRecorder = null;
     private SensorService sensorService = null;
@@ -70,8 +73,9 @@ public class TorgiService extends Service {
                 gnssMeasurementService = new GNSSMeasurementService(this);
                 gnssMeasurementService.start();
             }
-            if (sensorService == null)
-                sensorService = new SensorService(this, sensorListener);
+            SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(getApplicationContext());
+            if (prefs.getBoolean(PREFS_BIG_DATA,false))
+                startSensorService();
             if (locMgr == null) {
                 locMgr = getSystemService(LocationManager.class);
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
@@ -83,6 +87,21 @@ public class TorgiService extends Service {
                 currentLocation = locMgr.getLastKnownLocation(LocationManager.GPS_PROVIDER);
                 setForeground();
             }
+        }
+    }
+
+    public void startSensorService() {
+        if (sensorService == null) {
+            sensorService = new SensorService(this, sensorListener);
+            Log.d(TAG,"sensor service started");
+        }
+    }
+
+    public void stopSensorService() {
+        if (sensorService != null) {
+            sensorService.shutdown();
+            sensorService = null;
+            Log.d(TAG,"sensor service shutdown");
         }
     }
 
@@ -168,8 +187,7 @@ public class TorgiService extends Service {
             if (locListener != null)
                 locMgr.removeUpdates(locListener);
         }
-        if (sensorService != null)
-            sensorService.shutdown();
+        stopSensorService();
         if (gnssMeasurementService != null)
             gnssMeasurementService.shutdown();
         if (geoPackageRecorder != null)

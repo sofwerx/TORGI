@@ -10,6 +10,10 @@ public class Satellite {
         this.svid = svid;
     }
 
+    public Constellation getConstellation() {
+        return constellation;
+    }
+
     public boolean equals(Satellite sat) {
         if (sat == null)
             return false;

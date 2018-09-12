@@ -36,8 +36,8 @@ public abstract class AbstractTORGIActivity extends Activity {
     protected final static String TAG = "TORGI.monitor";
     private final static String PREF_BATTERY_OPT_IGNORE = "nvroptbat";
     private final static int PERM_REQUEST_CODE = 1;
-    private boolean serviceBound = false;
-    private TorgiService torgiService = null;
+    protected boolean serviceBound = false;
+    protected TorgiService torgiService = null;
     protected boolean permissionsPassed = false;
 
     protected void onCreate(Bundle savedInstanceState) {
@@ -95,7 +95,7 @@ public abstract class AbstractTORGIActivity extends Activity {
         }
     };
 
-    private void onTorgiServiceConnected() {
+    protected void onTorgiServiceConnected() {
         if (this instanceof GnssMeasurementListener)
             torgiService.setListener((GnssMeasurementListener)this);
     }

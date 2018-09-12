@@ -12,7 +12,7 @@
         android:id="@+id/monitorTextOverview"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:drawableStart="@drawable/icon_gnns"
+        android:drawableStart="@drawable/ic_satellite"
         android:gravity="center_vertical"
         android:text="No fix" />
 

@@ -12,7 +12,7 @@
         android:layout_width="80dp"
         android:layout_height="80dp"
         android:layout_centerInParent="true"
-        android:src="@drawable/icon_gnns" />
+        android:src="@drawable/ic_satellite" />
 
     <TextView
         android:id="@+id/textView"
@@ -23,4 +23,25 @@
         android:gravity="center"
         android:text="@string/torgi_not_running"
         android:textSize="20sp" />
+
+    <Switch
+        android:id="@+id/switchBigData"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_below="@+id/textView"
+        android:layout_centerHorizontal="true"
+        android:showText="true"
+        android:splitTrack="false"
+        android:textOff="@string/normal_data"
+        android:textOn="@string/big_data" />
+
+    <TextView
+        android:id="@+id/switchInfo"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:paddingLeft="20dp"
+        android:paddingRight="20dp"
+        android:layout_below="@+id/switchBigData"
+        android:layout_centerHorizontal="true"
+        android:text="@string/big_data_battery" />
 </RelativeLayout>

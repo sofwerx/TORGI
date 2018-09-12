@@ -3,7 +3,9 @@ package org.sofwerx.torgi.gnss;
 import java.util.ArrayList;
 
 /**
- * Collects EW indicator levels and provides estimates on likelihood of EW activity
+ * Collects EW indicator levels and provides estimates on likelihood of EW activity. This is a parallel
+ * effort to the GeoPackage recording and contains duplicate information optimized for eventual real-time
+ * detection of RFI.
  */
 public class EWDetection {
     private final static int MAX_POINT_STORAGE = 50;

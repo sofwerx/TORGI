@@ -9,4 +9,8 @@
     <string name="quit_torgi_narrative">Do you want to shutdown TORGI or do you want TORGI to keep collecting data in the background?</string>
     <string name="quit_yes">Shutdown</string>
     <string name="torgi_not_running">TORGI is not collecting...</string>
+    <string name="collect_big_data">Collect Big Data?</string>
+    <string name="big_data">Big Data</string>
+    <string name="normal_data">Normal Data</string>
+    <string name="big_data_battery">Collecting Big Data gets more information, but will use battery a bit faster and takes up more file space.</string>
 </resources>

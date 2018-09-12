@@ -4,6 +4,10 @@
     <string name="measurement">Measurements:</string>
     <string name="used_in_fix">Used in current fix:</string>
 
+    <string name="alert_dual_install_title">Multiple TORGI Apps</string>
+    <string name="alert_dual_install_narrative">The Logger version of TORGI was found on this device.  You probably should not have both installed on the same device.</string>
+    <string name="alert_dual_install_uninstall">Uninstall Logger</string>
+
     <!-- About -->
     <string name="legal">Legal</string>
     <string name="acknowledgements">Acknowledgements</string>

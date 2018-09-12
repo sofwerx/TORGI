@@ -41,6 +41,7 @@ import mil.nga.geopackage.extension.related.RelatedTablesExtension;
 import mil.nga.geopackage.extension.related.UserMappingDao;
 import mil.nga.geopackage.extension.related.UserMappingRow;
 import mil.nga.geopackage.extension.related.UserMappingTable;
+import mil.nga.geopackage.extension.related.UserRelatedTable;
 import mil.nga.geopackage.extension.related.simple.SimpleAttributesDao;
 import mil.nga.geopackage.extension.related.simple.SimpleAttributesRow;
 import mil.nga.geopackage.extension.related.simple.SimpleAttributesTable;
@@ -54,6 +55,8 @@ import mil.nga.geopackage.features.user.FeatureTable;
 import mil.nga.geopackage.geom.GeoPackageGeometryData;
 import mil.nga.geopackage.user.UserTable;
 import mil.nga.geopackage.user.custom.UserCustomColumn;
+import mil.nga.geopackage.user.custom.UserCustomDao;
+import mil.nga.geopackage.user.custom.UserCustomRow;
 import mil.nga.sf.GeometryType;
 import mil.nga.sf.Point;
 import mil.nga.sf.proj.ProjectionConstants;
@@ -73,6 +76,35 @@ public class GeoPackageRecorder extends HandlerThread {
     private final Context context;
     //private Looper looper = null;
     private AtomicBoolean ready = new AtomicBoolean(false);
+
+    private final static String SENSOR_TIME = "time";
+    private final static String SENSOR_ACCEL_X = "accel_x";
+    private final static String SENSOR_ACCEL_Y = "accel_y";
+    private final static String SENSOR_ACCEL_Z = "accel_z";
+    private final static String SENSOR_LINEAR_ACCEL_X = "linear_accel_x";
+    private final static String SENSOR_LINEAR_ACCEL_Y = "linear_accel_y";
+    private final static String SENSOR_LINEAR_ACCEL_Z = "linear_accel_z";
+    private final static String SENSOR_MAG_X = "mag_x";
+    private final static String SENSOR_MAG_Y = "mag_y";
+    private final static String SENSOR_MAG_Z = "mag_z";
+    private final static String SENSOR_GYRO_X = "gyro_x";
+    private final static String SENSOR_GYRO_Y = "gyro_y";
+    private final static String SENSOR_GYRO_Z = "gyro_z";
+    private final static String SENSOR_GRAVITY_X = "gravity_x";
+    private final static String SENSOR_GRAVITY_Y = "gravity_y";
+    private final static String SENSOR_GRAVITY_Z = "gravity_z";
+    private final static String SENSOR_ROT_VEC_X = "rot_vec_x";
+    private final static String SENSOR_ROT_VEC_Y = "rot_vec_y";
+    private final static String SENSOR_ROT_VEC_Z = "rot_vec_z";
+    private final static String SENSOR_ROT_VEC_COS = "rot_vec_cos";
+    private final static String SENSOR_ROT_VEC_HDG_ACC = "rot_vec_hdg_acc";
+    private final static String SENSOR_BARO = "baro";
+    private final static String SENSOR_HUMIDITY = "humidity";
+    private final static String SENSOR_TEMP = "temp";
+    private final static String SENSOR_LUX = "lux";
+    private final static String SENSOR_PROX = "prox";
+    private final static String SENSOR_STATIONARY = "stationary";
+    private final static String SENSOR_MOTION = "motion";
 
     private final static SimpleDateFormat fmtFilenameFriendlyTime = new SimpleDateFormat("YYYYMMdd HHmmss");
 
@@ -141,9 +173,9 @@ public class GeoPackageRecorder extends HandlerThread {
     UserTable ClkTable = null;
     UserTable MotionTable = null;
 
-    public String getGpkgFilename() {
+    /*public String getGpkgFilename() {
         return GpkgFilename;
-    }
+    }*/
 
     public void shutdown() {
         Log.d(TAG,"GeoPackageRecorder.shutdown()");
@@ -192,7 +224,7 @@ public class GeoPackageRecorder extends HandlerThread {
     }
 
     public void onGnssMeasurementsReceived(final GnssMeasurementsEvent event) {
-        if (ready.get() && (handler != null)) {
+        if (ready.get() && (handler != null) && (event != null)) {
             handler.post(() -> {
                 try {
                     Collection<GnssMeasurement> gm = event.getMeasurements();
@@ -346,15 +378,127 @@ public class GeoPackageRecorder extends HandlerThread {
     public void onSensorUpdated(final SensorEvent event) {
         if (ready.get() && (handler != null) && (event != null)) {
             handler.post(() -> {
-                if (event.sensor.getType() == Sensor.TYPE_MAGNETIC_FIELD_UNCALIBRATED) {
-                    float[] values = event.values;
-                    if ((values != null) && (values.length >= 3)) {
-                        float x = values[0];
-                        float y = values[1];
-                        float z = values[2];
-                        Log.d(TAG,"Magnetic sensor detects "+Float.toString(x)+","+Float.toString(y)+","+Float.toString(z)+"μT");
-                        //TODO if we want these persisted, then this is where they would be added
+                float[] values = event.values;
+                if ((values != null) && (values.length > 0)) {
+                    UserCustomDao sensorDao = RTE.getUserDao(motionTblName);
+                    UserCustomRow sensorRow = sensorDao.newRow();
+                    //SimpleAttributesDao sensorDao = RTE.getSimpleAttributesDao(motionTblName);
+                    //SimpleAttributesRow sensorRow = sensorDao.newRow();
+                    for (int i=1;i<sensorRow.columnCount();i++) {
+                        sensorRow.setValue(i,0d);
                     }
+                    sensorRow.setValue(SENSOR_STATIONARY,0);
+                    sensorRow.setValue(SENSOR_MOTION,0);
+                    sensorRow.setValue("data_dump","");
+                    sensorRow.setValue(SENSOR_TIME,event.timestamp);
+                    switch (event.sensor.getType()) {
+                        case Sensor.TYPE_MAGNETIC_FIELD:
+                            if (values.length >= 3) {
+                                sensorRow.setValue(SENSOR_MAG_X, (double)values[0]);
+                                sensorRow.setValue(SENSOR_MAG_Y, (double)values[1]);
+                                sensorRow.setValue(SENSOR_MAG_Z, (double)values[2]);
+                            }
+                            break;
+
+                        case Sensor.TYPE_MAGNETIC_FIELD_UNCALIBRATED:
+                            if (values.length >= 3) {
+                                sensorRow.setValue(SENSOR_MAG_X, (double)values[0]);
+                                sensorRow.setValue(SENSOR_MAG_Y, (double)values[1]);
+                                sensorRow.setValue(SENSOR_MAG_Z, (double)values[2]);
+                            }
+                            break;
+
+                        case Sensor.TYPE_ACCELEROMETER:
+                            if (values.length >= 3) {
+                                sensorRow.setValue(SENSOR_ACCEL_X, (double)values[0]);
+                                sensorRow.setValue(SENSOR_ACCEL_Y, (double)values[1]);
+                                sensorRow.setValue(SENSOR_ACCEL_Z, (double)values[2]);
+                            }
+                            break;
+
+                        case Sensor.TYPE_ACCELEROMETER_UNCALIBRATED:
+                            if (values.length >= 3) {
+                                sensorRow.setValue(SENSOR_ACCEL_X, (double)values[0]);
+                                sensorRow.setValue(SENSOR_ACCEL_Y, (double)values[1]);
+                                sensorRow.setValue(SENSOR_ACCEL_Z, (double)values[2]);
+                            }
+                            break;
+
+                        case Sensor.TYPE_LINEAR_ACCELERATION:
+                            if (values.length >= 3) {
+                                sensorRow.setValue(SENSOR_LINEAR_ACCEL_X, (double)values[0]);
+                                sensorRow.setValue(SENSOR_LINEAR_ACCEL_Y, (double)values[1]);
+                                sensorRow.setValue(SENSOR_LINEAR_ACCEL_Z, (double)values[2]);
+                            }
+                            break;
+
+                        case Sensor.TYPE_GYROSCOPE:
+                            if (values.length >= 3) {
+                                sensorRow.setValue(SENSOR_GYRO_X, (double)values[0]);
+                                sensorRow.setValue(SENSOR_GYRO_Y, (double)values[1]);
+                                sensorRow.setValue(SENSOR_GYRO_Z, (double)values[2]);
+                            }
+                            break;
+
+                        case Sensor.TYPE_GYROSCOPE_UNCALIBRATED:
+                            if (values.length >= 3) {
+                                sensorRow.setValue(SENSOR_GYRO_X, (double)values[0]);
+                                sensorRow.setValue(SENSOR_GYRO_Y, (double)values[1]);
+                                sensorRow.setValue(SENSOR_GYRO_Z, (double)values[2]);
+                            }
+                            break;
+
+                        case Sensor.TYPE_GRAVITY:
+                            if (values.length >= 3) {
+                                sensorRow.setValue(SENSOR_GRAVITY_X, (double)values[0]);
+                                sensorRow.setValue(SENSOR_GRAVITY_Y, (double)values[1]);
+                                sensorRow.setValue(SENSOR_GRAVITY_Z, (double)values[2]);
+                            }
+                            break;
+
+                        case Sensor.TYPE_ROTATION_VECTOR:
+                            if (values.length >= 5) {
+                                sensorRow.setValue(SENSOR_ROT_VEC_X, (double)values[0]);
+                                sensorRow.setValue(SENSOR_ROT_VEC_Y, (double)values[1]);
+                                sensorRow.setValue(SENSOR_ROT_VEC_Z, (double)values[2]);
+                                sensorRow.setValue(SENSOR_ROT_VEC_COS, (double)values[3]);
+                                sensorRow.setValue(SENSOR_ROT_VEC_HDG_ACC, (double)values[4]);
+                            }
+                            break;
+
+                        case Sensor.TYPE_AMBIENT_TEMPERATURE:
+                            sensorRow.setValue(SENSOR_TEMP,(double)values[0]);
+                            break;
+
+                        case Sensor.TYPE_RELATIVE_HUMIDITY:
+                            sensorRow.setValue(SENSOR_HUMIDITY,(double)values[0]);
+                            break;
+
+                        case Sensor.TYPE_PROXIMITY:
+                            sensorRow.setValue(SENSOR_PROX,(double)values[0]);
+                            break;
+
+                        case Sensor.TYPE_PRESSURE:
+                            sensorRow.setValue(SENSOR_BARO,(double)values[0]);
+                            break;
+
+                        case Sensor.TYPE_LIGHT:
+                            sensorRow.setValue(SENSOR_LUX,(double)values[0]);
+                            break;
+
+                        case Sensor.TYPE_STATIONARY_DETECT:
+                            sensorRow.setValue(SENSOR_STATIONARY,1);
+                            break;
+
+                        case Sensor.TYPE_MOTION_DETECT:
+                            sensorRow.setValue(SENSOR_MOTION,1);
+                            break;
+
+                        default:
+                            sensorRow = null;
+                    }
+                    if (sensorRow != null)
+                        sensorDao.insert(sensorRow);
                 }
             });
         }
@@ -367,7 +511,7 @@ public class GeoPackageRecorder extends HandlerThread {
                     HashMap<String, Long> maprows = (HashMap) SatRowsToMap.clone();
                     SatRowsToMap.clear();
 
-                    HashMap<String, String> locData = new HashMap<String, String>() {
+                    /*HashMap<String, String> locData = new HashMap<String, String>() {
                         {
                             put("Lat", String.valueOf(loc.getLatitude()));
                             put("Lon", String.valueOf(loc.getLongitude()));
@@ -382,7 +526,7 @@ public class GeoPackageRecorder extends HandlerThread {
                                 put("VerticalAccuracy", String.valueOf(loc.getVerticalAccuracyMeters()));
                             }
                         }
-                    };
+                    };*/
 
                     if (GPSgpkg != null) {
                         FeatureDao featDao = GPSgpkg.getFeatureDao(PtsTableName);
@@ -723,43 +867,45 @@ public class GeoPackageRecorder extends HandlerThread {
 //        tblcols.add(FeatureColumn.createColumn(colNum++, DublinCoreType.DESCRIPTION.getName(), TEXT, false, null));
 
         // android inertial sensor measurements
-        tblcols.add(UserCustomColumn.createColumn(colNum++, "accel_x", REAL, true, null));
-        tblcols.add(UserCustomColumn.createColumn(colNum++, "accel_y", REAL, true, null));
-        tblcols.add(UserCustomColumn.createColumn(colNum++, "accel_z", REAL, true, null));
+        tblcols.add(UserCustomColumn.createColumn(colNum++, SENSOR_TIME, INTEGER, true, 0l));
 
-        tblcols.add(UserCustomColumn.createColumn(colNum++, "linear_accel_x", REAL, true, null));
-        tblcols.add(UserCustomColumn.createColumn(colNum++, "linear_accel_y", REAL, true, null));
-        tblcols.add(UserCustomColumn.createColumn(colNum++, "linear_accel_z", REAL, true, null));
+        tblcols.add(UserCustomColumn.createColumn(colNum++, SENSOR_ACCEL_X, REAL, true, 0d));
+        tblcols.add(UserCustomColumn.createColumn(colNum++, SENSOR_ACCEL_Y, REAL, true, 0d));
+        tblcols.add(UserCustomColumn.createColumn(colNum++, SENSOR_ACCEL_Z, REAL, true, 0d));
 
-        tblcols.add(UserCustomColumn.createColumn(colNum++, "mag_x", REAL, true, null));
-        tblcols.add(UserCustomColumn.createColumn(colNum++, "mag_y", REAL, true, null));
-        tblcols.add(UserCustomColumn.createColumn(colNum++, "mag_z", REAL, true, null));
+        tblcols.add(UserCustomColumn.createColumn(colNum++, SENSOR_LINEAR_ACCEL_X, REAL, true, 0d));
+        tblcols.add(UserCustomColumn.createColumn(colNum++, SENSOR_LINEAR_ACCEL_Y, REAL, true, 0d));
+        tblcols.add(UserCustomColumn.createColumn(colNum++, SENSOR_LINEAR_ACCEL_Z, REAL, true, 0d));
 
-        tblcols.add(UserCustomColumn.createColumn(colNum++, "gyro_x", REAL, true, null));
-        tblcols.add(UserCustomColumn.createColumn(colNum++, "gyro_y", REAL, true, null));
-        tblcols.add(UserCustomColumn.createColumn(colNum++, "gyro_z", REAL, true, null));
+        tblcols.add(UserCustomColumn.createColumn(colNum++, SENSOR_MAG_X, REAL, true, 0d));
+        tblcols.add(UserCustomColumn.createColumn(colNum++, SENSOR_MAG_Y, REAL, true, 0d));
+        tblcols.add(UserCustomColumn.createColumn(colNum++, SENSOR_MAG_Z, REAL, true, 0d));
 
-        tblcols.add(UserCustomColumn.createColumn(colNum++, "gravity_x", REAL, true, null));
-        tblcols.add(UserCustomColumn.createColumn(colNum++, "gravity_y", REAL, true, null));
-        tblcols.add(UserCustomColumn.createColumn(colNum++, "gravity_z", REAL, true, null));
+        tblcols.add(UserCustomColumn.createColumn(colNum++, SENSOR_GYRO_X, REAL, true, 0d));
+        tblcols.add(UserCustomColumn.createColumn(colNum++, SENSOR_GYRO_Y, REAL, true, 0d));
+        tblcols.add(UserCustomColumn.createColumn(colNum++, SENSOR_GYRO_Z, REAL, true, 0d));
 
-        tblcols.add(UserCustomColumn.createColumn(colNum++, "rot_vec_x", REAL, true, null));
-        tblcols.add(UserCustomColumn.createColumn(colNum++, "rot_vec_y", REAL, true, null));
-        tblcols.add(UserCustomColumn.createColumn(colNum++, "rot_vec_z", REAL, true, null));
-        tblcols.add(UserCustomColumn.createColumn(colNum++, "rot_vec_cos", REAL, true, null));
-        tblcols.add(UserCustomColumn.createColumn(colNum++, "rot_vec_hdg_acc", REAL, true, null));
+        tblcols.add(UserCustomColumn.createColumn(colNum++, SENSOR_GRAVITY_X, REAL, true, 0d));
+        tblcols.add(UserCustomColumn.createColumn(colNum++, SENSOR_GRAVITY_Y, REAL, true, 0d));
+        tblcols.add(UserCustomColumn.createColumn(colNum++, SENSOR_GRAVITY_Z, REAL, true, 0d));
 
-        tblcols.add(UserCustomColumn.createColumn(colNum++, "baro", REAL, true, null));
-        tblcols.add(UserCustomColumn.createColumn(colNum++, "humidity", REAL, true, null));
-        tblcols.add(UserCustomColumn.createColumn(colNum++, "temp", REAL, true, null));
+        tblcols.add(UserCustomColumn.createColumn(colNum++, SENSOR_ROT_VEC_X, REAL, true, 0d));
+        tblcols.add(UserCustomColumn.createColumn(colNum++, SENSOR_ROT_VEC_Y, REAL, true, 0d));
+        tblcols.add(UserCustomColumn.createColumn(colNum++, SENSOR_ROT_VEC_Z, REAL, true, 0d));
+        tblcols.add(UserCustomColumn.createColumn(colNum++, SENSOR_ROT_VEC_COS, REAL, true, 0d));
+        tblcols.add(UserCustomColumn.createColumn(colNum++, SENSOR_ROT_VEC_HDG_ACC, REAL, true, 0d));
 
-        tblcols.add(UserCustomColumn.createColumn(colNum++, "lux", REAL, true, null));
-        tblcols.add(UserCustomColumn.createColumn(colNum++, "prox", REAL, true, null));
+        tblcols.add(UserCustomColumn.createColumn(colNum++, SENSOR_BARO, REAL, true, 0d));
+        tblcols.add(UserCustomColumn.createColumn(colNum++, SENSOR_HUMIDITY, REAL, true, 0d));
+        tblcols.add(UserCustomColumn.createColumn(colNum++, SENSOR_TEMP, REAL, true, 0d));
 
-        tblcols.add(UserCustomColumn.createColumn(colNum++, "stationary", INTEGER, true, null));
-        tblcols.add(UserCustomColumn.createColumn(colNum++, "motion", INTEGER, true, null));
+        tblcols.add(UserCustomColumn.createColumn(colNum++, SENSOR_LUX, REAL, true, 0d));
+        tblcols.add(UserCustomColumn.createColumn(colNum++, SENSOR_PROX, REAL, true, 0d));
 
-        tblcols.add(UserCustomColumn.createColumn(colNum++, "data_dump", TEXT, true, null));
+        tblcols.add(UserCustomColumn.createColumn(colNum++, SENSOR_STATIONARY, INTEGER, true, 0));
+        tblcols.add(UserCustomColumn.createColumn(colNum++, SENSOR_MOTION, INTEGER, true, 0));
+
+        tblcols.add(UserCustomColumn.createColumn(colNum++, "data_dump", TEXT, true, ""));
 
         SimpleAttributesTable table = SimpleAttributesTable.create(tableName, tblcols);
 

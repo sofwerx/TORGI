@@ -1,15 +1,9 @@
 package org.sofwerx.torgi.ui;
 
-import android.Manifest;
 import android.app.AlertDialog;
 import android.content.ActivityNotFoundException;
-import android.content.ComponentName;
-import android.content.Context;
-import android.content.DialogInterface;
 import android.content.Intent;
-import android.content.ServiceConnection;
 import android.content.SharedPreferences;
-import android.content.pm.PackageManager;
 import android.graphics.Color;
 import android.location.GnssMeasurement;
 import android.location.GnssMeasurementsEvent;
@@ -18,19 +12,12 @@ import android.location.Location;
 import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
-import android.os.IBinder;
-import android.os.PowerManager;
 import android.preference.PreferenceManager;
-import android.provider.Settings;
-import android.support.v4.app.ActivityCompat;
-import android.support.v4.app.FragmentActivity;
-import android.support.v4.content.ContextCompat;
 import android.util.Log;
 import android.view.Menu;
 import android.view.MenuInflater;
 import android.view.MenuItem;
 import android.widget.TextView;
-import android.widget.Toast;
 
 import com.github.mikephil.charting.charts.CombinedChart;
 import com.github.mikephil.charting.components.Legend;
@@ -55,7 +42,7 @@ import org.sofwerx.torgi.gnss.SatMeasurement;
 import org.sofwerx.torgi.gnss.Satellite;
 import org.sofwerx.torgi.gnss.SpaceTime;
 import org.sofwerx.torgi.listener.GnssMeasurementListener;
-import org.sofwerx.torgi.service.TorgiService;
+import org.sofwerx.torgi.util.PackageUtil;
 
 import java.text.DecimalFormat;
 import java.text.SimpleDateFormat;
@@ -66,10 +53,9 @@ public class MainActivity extends AbstractTORGIActivity implements GnssMeasureme
     private final static long MAX_CHART_UPDATE_RATE = 500l;
     private long lastChartUpdate = Long.MIN_VALUE;
     private float chartIndex = 0f;
-    private double CENTER_US_LAT = 39.181071d;
-    private double CENTER_US_LNG =  -99.938295d;
     private final static String PREF_LAT = "lat";
     private final static String PREF_LNG = "lng";
+    private final static String PREF_DUAL_APP_ASK = "dual";
     private final static int MAX_HISTORY_LENGTH = 50;
     private final static SimpleDateFormat fmtTime = new SimpleDateFormat("HH:mm:ss");
     private final static DecimalFormat fmtAccuracy = new DecimalFormat("#.##");
@@ -85,6 +71,8 @@ public class MainActivity extends AbstractTORGIActivity implements GnssMeasureme
     private LineDataSet setCN0 = null;
     private BarDataSet setAGC = null;
     private Location currentLoc = null;
+
+    private boolean nagAboutDualInstalls = true;
 
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -224,6 +212,25 @@ public class MainActivity extends AbstractTORGIActivity implements GnssMeasureme
     @Override
     public void onResume() {
         super.onResume();
+        if (nagAboutDualInstalls && askAboutDualApps()) {
+            nagAboutDualInstalls = false;
+            if (PackageUtil.isSensorAppInstalled(this)) {
+                AlertDialog.Builder builder = new AlertDialog.Builder(this);
+                builder.setTitle(R.string.alert_dual_install_title);
+                builder.setMessage(R.string.alert_dual_install_narrative);
+                builder.setPositiveButton(R.string.alert_dual_install_uninstall, (dialog, which) -> {
+                    Uri packageUri = Uri.parse("package:" + PackageUtil.PACKAGE_LOGGER);
+                    try {
+                        startActivity(new Intent(Intent.ACTION_UNINSTALL_PACKAGE, packageUri));
+                    } catch (ActivityNotFoundException e) {
+                    }
+                });
+                builder.setOnDismissListener(dialog -> setDontAskAboutDualApps());
+                final AlertDialog dialog = builder.create();
+                dialog.setCanceledOnTouchOutside(false);
+                dialog.show();
+            }
+        }
     }
 
     @Override
@@ -273,6 +280,18 @@ public class MainActivity extends AbstractTORGIActivity implements GnssMeasureme
                 osmMap.invalidate();
             }
         }
+    }
+
+    private boolean askAboutDualApps() {
+        SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(getApplicationContext());
+        return prefs.getBoolean(PREF_DUAL_APP_ASK,true);
+    }
+
+    private void setDontAskAboutDualApps() {
+        SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(getApplicationContext());
+        SharedPreferences.Editor edit = prefs.edit();
+        edit.putBoolean(PREF_DUAL_APP_ASK,false);
+        edit.apply();
     }
 
     private void saveLastLocation() {

@@ -3,7 +3,7 @@ package org.sofwerx.torgi.util;
 public class Acknowledgements {
     private final static String[] CREDITS = {
             "Charts generated from <a href=\"https://github.com/PhilJay/MPAndroidChart\">MPAndroidChart, Phillip Jahoda</a> licensed under <a href=\"http://www.apache.org/licenses/LICENSE-2.0\">Apache License, Version 2.0</a>",
-            "GNSS icon derived from <a href=\"https://thenounproject.com/search/?q=satellite&i=1556189\">The Noun Project, Weltenraser</a> licensed under <a href=\"https://creativecommons.org/licenses/by/3.0/us/legalcode\">Creative Commons</a>"
+            "GNSS icon derived from <a href=\"https://thenounproject.com/search/?q=gps&i=1112816\">The Noun Project, Dinosoft Labs</a> licensed under <a href=\"https://creativecommons.org/licenses/by/3.0/us/legalcode\">Creative Commons</a>"
     };
 
     public final static String getCredits() {

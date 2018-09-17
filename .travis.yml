@@ -2,16 +2,7 @@ sudo: required
 services:
 - docker
 language: bash
-before_script:
-- openssl aes-256-cbc -K $encrypted_a09fee89eb14_key -iv $encrypted_a09fee89eb14_iv -in .dmport.enc -out .dmport -d
-- sudo apt-get -qq update
-- curl -sL https://deb.nodesource.com/setup_6.x | sudo -E bash -
-- sudo apt-get install -y nodejs
-- sudo npm install -g @mumbacloud/dmport
-- eval $(dmport --import "$(cat .dmport)")
-- rm -f .dmport
 script:
-- export COMPOSE_PROJECT_NAME=swxvmhost
 - make
 - ls -la
 - cp torgi-logger-debug.apk torgi-logger-debug_${TRAVIS_TAG}.apk
@@ -24,6 +15,7 @@ after_success:
 branches:
   only:
   - master
+  - travis-only
   - "/^v\\d.*$/"
 deploy:
   provider: releases

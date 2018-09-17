@@ -3,7 +3,8 @@ package org.sofwerx.torgi.gnss;
 import java.util.ArrayList;
 
 /**
- * Single measurement of significant values for determining EW effects for one measurement from one sat
+ * Single measurement of significant values for determining EW effects for one measurement from one sat. Can
+ * be absolute or relative.
  */
 public class GNSSEWValues {
     public final static double NA = Double.NaN;
@@ -68,12 +69,18 @@ public class GNSSEWValues {
     }
 
     /**
-     * Does this measurement have all required values
+     * Does this measurement have all values
      * @return
      */
     public boolean isComplete() {
         return !Float.isNaN(cn0) && !Double.isNaN(agc);
     }
+
+    /**
+     * Does this measurement have any meaningful info
+     * @return
+     */
+    public boolean isValid() { return !Float.isNaN(cn0) || !Double.isNaN(agc); }
 
     /**
      * Is this C/N0 value different enough from the reference to be significant
@@ -124,6 +131,11 @@ public class GNSSEWValues {
         return (int)Math.round((agc-referenceValue.agc)*100d/referenceValue.agc);
     }
 
+    /**
+     * Gets the average of an array of GNSSEWValues
+     * @param values
+     * @return
+     */
     public static GNSSEWValues getAverage(ArrayList<GNSSEWValues> values) {
         if ((values == null) || values.isEmpty())
             return null;
@@ -141,9 +153,47 @@ public class GNSSEWValues {
                 numAGC++;
             }
         }
-        if ((numCN0 == 0) || (numAGC == 0))
-            return null;
+        float avgCN0 = Float.NaN;
+        double avgAGC = Double.NaN;
+        if (numCN0 > 0)
+            avgCN0 = sumCN0/numCN0;
+        if (numAGC > 0)
+            avgAGC = sumAGC/numAGC;
+        return new GNSSEWValues(avgCN0,avgAGC);
+    }
+
+    /**
+     * Gets the difference between two GNSSEWValues
+     * @param val1
+     * @param val2
+     * @return the difference between the two values or null if they are not comparable
+     */
+    public static GNSSEWValues getDifference(GNSSEWValues val1, GNSSEWValues val2) {
+        if ((val1 != null) && (val2 != null)) {
+            GNSSEWValues out = new GNSSEWValues();
+            if (!Float.isNaN(val1.cn0) && !Float.isNaN(val2.cn0))
+                out.cn0 = val1.cn0 - val2.cn0;
+            if (!Double.isNaN(val1.agc) && !Double.isNaN(val2.agc))
+                out.agc = val1.agc - val2.agc;
+            if (out.isValid())
+                return out;
+        }
+        return null;
+    }
+
+    @Override
+    public String toString() {
+        StringBuffer out = new StringBuffer();
+
+        if (Float.isNaN(cn0))
+            out.append("unk C/N0");
         else
-            return new GNSSEWValues(sumCN0/numCN0,sumAGC/numAGC);
+            out.append("C/N0 "+Float.toString(cn0)+"dB-Hz");
+        if (Double.isNaN(agc))
+            out.append(", unk AGC");
+        else
+            out.append(", AGC "+Double.toString(agc)+"dB");
+
+        return out.toString();
     }
 }

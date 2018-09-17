@@ -8,6 +8,11 @@
     <string name="alert_dual_install_narrative">The Logger version of TORGI was found on this device.  You probably should not have both installed on the same device.</string>
     <string name="alert_dual_install_uninstall">Uninstall Logger</string>
 
+    <string name="risk_low">GNSS Risk Low</string>
+    <string name="risk_medium">GNSS Risk Medium</string>
+    <string name="risk_high">GNSS Risk HIGH</string>
+    <string name="risk_unknown">Determining current GNSS risk...</string>
+
     <!-- About -->
     <string name="legal">Legal</string>
     <string name="acknowledgements">Acknowledgements</string>

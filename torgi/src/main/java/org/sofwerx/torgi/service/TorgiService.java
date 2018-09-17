@@ -25,6 +25,7 @@ import android.support.annotation.RequiresApi;
 import android.support.v4.content.ContextCompat;
 import android.util.Log;
 
+import org.sofwerx.torgi.gnss.DataPoint;
 import org.sofwerx.torgi.listener.GnssMeasurementListener;
 import org.sofwerx.torgi.R;
 import org.sofwerx.torgi.listener.SensorListener;
@@ -74,7 +75,7 @@ public class TorgiService extends Service {
                 gnssMeasurementService.start();
             }
             SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(getApplicationContext());
-            if (prefs.getBoolean(PREFS_BIG_DATA,false))
+            if (prefs.getBoolean(PREFS_BIG_DATA,true))
                 startSensorService();
             if (locMgr == null) {
                 locMgr = getSystemService(LocationManager.class);
@@ -130,8 +131,8 @@ public class TorgiService extends Service {
                 geoPackageRecorder.onGnssMeasurementsReceived(event);
             if (gnssMeasurementService != null)
                 gnssMeasurementService.onGnssMeasurementsReceived(currentLocation,event);
-            if (listener != null)
-                listener.onGnssMeasurementReceived(event);
+            //if (listener != null)
+            //    listener.onGnssMeasurementReceived(event);
         }
     };
 
@@ -257,5 +258,10 @@ public class TorgiService extends Service {
             NotificationManager notificationManager = getSystemService(NotificationManager.class);
             notificationManager.createNotificationChannel(channel);
         }
+    }
+
+    public void onEWDataProcessed(DataPoint dp) {
+        if ((dp != null) && (listener != null))
+            listener.onEWDataProcessed(dp);
     }
 }

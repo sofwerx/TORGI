@@ -15,6 +15,7 @@ import android.location.GnssStatus;
 import android.location.Location;
 import android.location.LocationListener;
 import android.location.LocationManager;
+import android.net.Uri;
 import android.os.Binder;
 import android.os.Build;
 import android.os.Bundle;
@@ -23,11 +24,19 @@ import android.preference.PreferenceManager;
 import android.support.annotation.Nullable;
 import android.support.annotation.RequiresApi;
 import android.support.v4.content.ContextCompat;
+import android.support.v4.content.FileProvider;
 import android.util.Log;
 
+import org.sofwerx.torgi.gnss.DataPoint;
+import org.sofwerx.torgi.gnss.helper.GeoPackageGPSPtHelper;
+import org.sofwerx.torgi.gnss.helper.GeoPackageSatDataHelper;
+import org.sofwerx.torgi.listener.GeoPackageRetrievalListener;
 import org.sofwerx.torgi.listener.GnssMeasurementListener;
 import org.sofwerx.torgi.R;
 import org.sofwerx.torgi.listener.SensorListener;
+
+import java.io.File;
+import java.util.ArrayList;
 
 import static java.time.Instant.now;
 
@@ -74,7 +83,7 @@ public class TorgiService extends Service {
                 gnssMeasurementService.start();
             }
             SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(getApplicationContext());
-            if (prefs.getBoolean(PREFS_BIG_DATA,false))
+            if (prefs.getBoolean(PREFS_BIG_DATA,true))
                 startSensorService();
             if (locMgr == null) {
                 locMgr = getSystemService(LocationManager.class);
@@ -130,10 +139,28 @@ public class TorgiService extends Service {
                 geoPackageRecorder.onGnssMeasurementsReceived(event);
             if (gnssMeasurementService != null)
                 gnssMeasurementService.onGnssMeasurementsReceived(currentLocation,event);
-            if (listener != null)
-                listener.onGnssMeasurementReceived(event);
+            //if (listener != null)
+            //    listener.onGnssMeasurementReceived(event);
         }
     };
+
+    public void getHistory() {
+        if (geoPackageRecorder != null) {
+            GeoPackageRetrievalListener listener = new GeoPackageRetrievalListener() {
+                @Override
+                public void onGnssSatDataRetrieved(ArrayList<GeoPackageSatDataHelper> measurements) {
+                    Log.d(TAG, "onGnssSatDataRetrieved()");
+                }
+
+                @Override
+                public void onGnssGeoPtRetrieved(ArrayList<GeoPackageGPSPtHelper> measurements) {
+                    Log.d(TAG, "onGnssSatDataRetrieved()");
+                }
+            };
+            geoPackageRecorder.getGnssMeasurements(System.currentTimeMillis() - 1000l * 10l, System.currentTimeMillis(), listener);
+            geoPackageRecorder.getGPSObservationPoints(System.currentTimeMillis() - 1000l * 10l, System.currentTimeMillis(), listener);
+        }
+    }
 
     private LocationListener locListener = new LocationListener() {
         public void onProviderEnabled(String provider) {
@@ -190,8 +217,24 @@ public class TorgiService extends Service {
         stopSensorService();
         if (gnssMeasurementService != null)
             gnssMeasurementService.shutdown();
+        String dbFile = null;
         if (geoPackageRecorder != null)
-            geoPackageRecorder.shutdown();
+            dbFile = geoPackageRecorder.shutdown();
+        if (dbFile != null) {
+            File file = new File(dbFile);
+            if (file.exists()) {
+                Intent intentShareFile = new Intent(Intent.ACTION_SEND);
+                intentShareFile.setType("application/octet-stream");
+                //intentShareFile.setType("application/pdf");
+                intentShareFile.putExtra(Intent.EXTRA_STREAM,
+                        FileProvider.getUriForFile(this, this.getApplicationContext().getPackageName() + ".geopackage.provider",file));
+                intentShareFile.putExtra(Intent.EXTRA_SUBJECT, file.getName());
+                //intentShareFile.putExtra(Intent.EXTRA_TEXT, getString(R.string.torgi_ready_share_narrative));
+                intentShareFile.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
+                startActivity(Intent.createChooser(intentShareFile, getString(R.string.share)));
+            }
+
+        }
         super.onDestroy();
     }
 
@@ -257,5 +300,10 @@ public class TorgiService extends Service {
             NotificationManager notificationManager = getSystemService(NotificationManager.class);
             notificationManager.createNotificationChannel(channel);
         }
+    }
+
+    public void onEWDataProcessed(DataPoint dp) {
+        if ((dp != null) && (listener != null))
+            listener.onEWDataProcessed(dp);
     }
 }

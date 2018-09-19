@@ -14,7 +14,9 @@ public enum Constellation {
 
     private int value;
 
-    public static int size() { return Constellation.size(); }
+    private static final int size = values().length;
+
+    public static int size() { return size; }
 
     Constellation(int value) {
         this.value = value;

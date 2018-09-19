@@ -3,6 +3,21 @@
     <color name="colorPrimary">#3F51B5</color>
     <color name="colorPrimaryDark">#303f9f</color>
     <color name="colorAccent">#FF4081</color>
+
+    <color name="yellow">#FFFF00</color>
+    <color name="red">#FF0000</color>
+    <color name="red_warning">#FFFF00</color>
+    <color name="darkgrey">#333333</color>
+
+    <color name="brightgreen">#FF77FF77</color>
+    <color name="brightred">#FFFF7777</color>
+
+    <!-- chart colors -->
     <color name="cn0">#FFAAAA</color>
     <color name="agc">#FFFFAA</color>
+    <color name="rfi">#FF00FF</color>
+    <color name="cn0agc">#0000FF</color>
+    <color name="constellation">#FFFF00</color>
+    <color name="fusedSpoof">#00FF00</color>
+    <color name="fused">#FF0000</color>
 </resources>

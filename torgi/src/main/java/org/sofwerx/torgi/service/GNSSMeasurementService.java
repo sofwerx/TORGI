@@ -19,7 +19,7 @@ import org.sofwerx.torgi.gnss.SpaceTime;
 import java.util.Collection;
 
 public class GNSSMeasurementService extends Thread {
-    private final static String TAG = "TORGI.MsrSrc";
+    private final static String TAG = "TORGI.EW";
     private Handler handler;
     private long HELPER_INTERVAL = 1000l;
     private long BASELINE_UPDATE_INTERVAL = 1000l * 60l;
@@ -36,7 +36,7 @@ public class GNSSMeasurementService extends Thread {
     private final Runnable periodicHelper = new Runnable() {
         @Override
         public void run() {
-            Log.d(TAG,"GNSSMeasurementService - periodicHelper");
+            //Log.d(TAG,"GNSSMeasurementService - periodicHelper");
             if (System.currentTimeMillis() > lastBaselineUpdate + BASELINE_UPDATE_INTERVAL) {
                 ewDetection.updateBaseline(true);
                 ewDetection.emptyDataPoints();
@@ -69,10 +69,10 @@ public class GNSSMeasurementService extends Thread {
         if ((loc != null) && (measurements != null) && !measurements.isEmpty()) {
             handler.post(() -> {
                 synchronized (ewDetection) {
-                    Log.d(TAG,"EW Measurement recorded");
+                    //Log.d(TAG,"EW Measurement recorded");
                     DataPoint dp = new DataPoint(new SpaceTime(loc));
                     for (GnssMeasurement measurement : measurements) {
-                        Satellite sat = new Satellite(Constellation.get(measurement.getConstellationType()),measurement.getSvid());
+                        Satellite sat = Satellite.get(Constellation.get(measurement.getConstellationType()),measurement.getSvid());
                         SatMeasurement satMeasurement;
                         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O)
                             satMeasurement = new SatMeasurement(sat, new GNSSEWValues((float)measurement.getCn0DbHz(),measurement.getAutomaticGainControlLevelDb()));
@@ -81,6 +81,7 @@ public class GNSSMeasurementService extends Thread {
                         dp.add(satMeasurement);
                     }
                     ewDetection.add(dp);
+                    torgiService.onEWDataProcessed(dp);
                 }
             });
         }

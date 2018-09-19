@@ -5,19 +5,18 @@ import android.content.ActivityNotFoundException;
 import android.content.Intent;
 import android.content.SharedPreferences;
 import android.graphics.Color;
-import android.location.GnssMeasurement;
 import android.location.GnssMeasurementsEvent;
 import android.location.GnssStatus;
 import android.location.Location;
 import android.net.Uri;
-import android.os.Build;
 import android.os.Bundle;
 import android.preference.PreferenceManager;
 import android.util.Log;
-import android.view.Menu;
-import android.view.MenuInflater;
 import android.view.MenuItem;
+import android.view.View;
 import android.widget.TextView;
+import android.widget.Toast;
+import android.widget.Toolbar;
 
 import com.github.mikephil.charting.charts.CombinedChart;
 import com.github.mikephil.charting.components.Legend;
@@ -31,23 +30,26 @@ import com.github.mikephil.charting.data.Entry;
 import com.github.mikephil.charting.data.LineData;
 import com.github.mikephil.charting.data.LineDataSet;
 
+import org.osmdroid.tileprovider.constants.OpenStreetMapTileProviderConstants;
+import org.osmdroid.tileprovider.tilesource.TileSourceFactory;
 import org.osmdroid.util.GeoPoint;
+import org.osmdroid.views.overlay.Overlay;
+import org.osmdroid.views.overlay.TilesOverlay;
 import org.osmdroid.views.overlay.gestures.RotationGestureOverlay;
 import org.sofwerx.torgi.R;
 import org.sofwerx.torgi.gnss.Constellation;
 import org.sofwerx.torgi.gnss.DataPoint;
+import org.sofwerx.torgi.gnss.EWIndicators;
 import org.sofwerx.torgi.gnss.GNSSEWValues;
 import org.sofwerx.torgi.gnss.LatLng;
 import org.sofwerx.torgi.gnss.SatMeasurement;
-import org.sofwerx.torgi.gnss.Satellite;
-import org.sofwerx.torgi.gnss.SpaceTime;
 import org.sofwerx.torgi.listener.GnssMeasurementListener;
 import org.sofwerx.torgi.util.PackageUtil;
 
 import java.text.DecimalFormat;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
-import java.util.Collection;
+import java.util.Iterator;
 
 public class MainActivity extends AbstractTORGIActivity implements GnssMeasurementListener {
     private final static long MAX_CHART_UPDATE_RATE = 500l;
@@ -65,19 +67,62 @@ public class MainActivity extends AbstractTORGIActivity implements GnssMeasureme
     private ArrayList<LatLng> history = null;
     private LatLng current = null;
     private CombinedChart chartEW = null;
-    private CombinedData chartData = null;
-    private TextView textOverview;
+    private CombinedData chartEWData = null;
+    private CombinedChart chartIAW = null;
+    private CombinedData chartIAWData = null;
+    private TextView textOverview,textConstellations,textLive;
+    private GNSSStatusView ewWarningView;
 
+    //Observed GNSS values
     private LineDataSet setCN0 = null;
     private BarDataSet setAGC = null;
+
+    // likelihood of EW values
+    private LineDataSet setRFI = null;
+    private LineDataSet setCN0AGC = null;
+    private LineDataSet setConstellation = null;
+    private LineDataSet setFusedSpoof = null;
+    private BarDataSet setFused = null;
+
     private Location currentLoc = null;
 
     private boolean nagAboutDualInstalls = true;
 
+    private boolean live = true;
+
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+        Toolbar toolbar = findViewById(R.id.mainToolbar);
+        setActionBar(toolbar);
         textOverview = findViewById(R.id.monitorTextOverview);
+        textConstellations = findViewById(R.id.monitorConstellationCount);
+        textLive = findViewById(R.id.mainLiveIndicator);
+        textLive.setOnClickListener(v -> updateLive(!live));
+        ewWarningView = findViewById(R.id.mainEWStatusView);
         osmMapSetup();
+    }
+
+    private void updateLive(boolean live) {
+        if (this.live != live) {
+            //TODO this.live = live;
+            live = true; //TODO
+            if (live) {
+                textLive.setText(getString(R.string.live));
+                textLive.setTextColor(getColor(R.color.brightgreen));
+                textLive.setCompoundDrawablesWithIntrinsicBounds(R.drawable.ic_satellite,0,0,0);
+                Toast.makeText(this, "This will eventually toggle between viewing realtime and recorded.", Toast.LENGTH_SHORT).show();
+
+                //TODO temp for testing
+                //new Heatmap(this,osmMap);
+                //if (serviceBound)
+                //    torgiService.getHistory();
+
+            } else {
+                textLive.setText(getString(R.string.recorded));
+                textLive.setTextColor(getColor(R.color.brightred));
+                textLive.setCompoundDrawablesWithIntrinsicBounds(R.drawable.ic_history,0,0,0);
+            }
+        }
     }
 
     @Override
@@ -113,38 +158,38 @@ public class MainActivity extends AbstractTORGIActivity implements GnssMeasureme
 
             YAxis rightAxis = chartEW.getAxisRight(); //AGC
             rightAxis.setDrawGridLines(false);
-            rightAxis.setAxisMinimum(-1f);
+            rightAxis.setAxisMinimum(-5f);
             rightAxis.setAxisMaximum(5f);
             rightAxis.setTextColor(getColor(R.color.agc));
             rightAxis.setDrawLabels(true);
-            rightAxis.setValueFormatter((value, axis) -> (int) value + "dB");
+            rightAxis.setValueFormatter((value, axis) -> (int) value + " dB");
 
             YAxis leftAxis = chartEW.getAxisLeft(); //CNO
             leftAxis.setDrawGridLines(false);
             leftAxis.setAxisMinimum(10f);
             leftAxis.setAxisMaximum(40f);
             leftAxis.setTextColor(Color.rgb(255, 150, 150));
-            leftAxis.setValueFormatter((value, axis) -> (int) value + "dB-Hz");
+            leftAxis.setValueFormatter((value, axis) -> (int) value + " dB-Hz");
 
             XAxis xAxis = chartEW.getXAxis();
             xAxis.setPosition(XAxis.XAxisPosition.BOTH_SIDED);
             //xAxis.setAxisMinimum(0f);
             //xAxis.setGranularity(1f);
 
-            chartData = new CombinedData();
+            chartEWData = new CombinedData();
 
-            chartData.setData(generateLineData(entriesCNO));
-            chartData.setData(generateBarData(entriesAGC));
+            chartEWData.setData(generateEWLineData(entriesCNO));
+            chartEWData.setData(generateEWBarData(entriesAGC));
             //data.setValueTypeface(mTfLight);
 
             //xAxis.setAxisMaximum(data.getXMax() + 0.25f);
 
-            chartEW.setData(chartData);
+            chartEW.setData(chartEWData);
             //chartEW.invalidate();
         }
     }
 
-    private LineData generateLineData(ArrayList<Entry> entriesCNO) {
+    private LineData generateEWLineData(ArrayList<Entry> entriesCNO) {
         LineData d = new LineData();
 
         setCN0 = new LineDataSet(entriesCNO, "Avg C/N₀");
@@ -161,18 +206,127 @@ public class MainActivity extends AbstractTORGIActivity implements GnssMeasureme
         return d;
     }
 
-    private BarData generateBarData(ArrayList<BarEntry> entriesAGC) {
+    private BarData generateEWBarData(ArrayList<BarEntry> entriesAGC) {
         BarData d = new BarData();
 
         setAGC = new BarDataSet(entriesAGC, "Avg AGC");
         setAGC.setColor(getColor(R.color.agc));
         setAGC.setDrawIcons(false);
         setAGC.setDrawValues(false);
-        //setAGC.setValueTextColor(getColor(R.color.agc));
-        //setAGC.setValueTextSize(10f);
         setAGC.setAxisDependency(YAxis.AxisDependency.RIGHT);
 
         d.addDataSet(setAGC);
+        return d;
+    }
+
+    private void setupIAWchart(Entry entryRFI, Entry entryCN0AGC, Entry entryConstellation, Entry entryFusedSpoof, BarEntry entryFused) {
+        if ((chartIAW == null) && (entryRFI != null) && (entryCN0AGC != null) && (entryConstellation != null) && (entryFusedSpoof != null)  && (entryFused != null)) {
+            ArrayList<Entry> entriesRFI = new ArrayList<>();
+            ArrayList<Entry> entriesCN0AGC = new ArrayList<>();
+            ArrayList<Entry> entriesConstellation = new ArrayList<>();
+            ArrayList<Entry> entriesFusedSpoof = new ArrayList<>();
+            ArrayList<BarEntry> entriesFused = new ArrayList<>();
+            entriesRFI.add(entryRFI);
+            entriesCN0AGC.add(entryCN0AGC);
+            entriesConstellation.add(entryConstellation);
+            entriesFusedSpoof.add(entryFusedSpoof);
+            entriesFused.add(entryFused);
+
+            chartIAW = findViewById(R.id.chartIAW);
+            chartIAW.getDescription().setEnabled(false);
+            chartIAW.setBackgroundColor(Color.BLACK);
+            chartIAW.setDrawGridBackground(false);
+            chartIAW.setDrawBarShadow(false);
+            chartIAW.setHighlightFullBarEnabled(false);
+            chartIAW.setPinchZoom(false);
+            chartIAW.setNoDataText("Waiting for baseline to settle...");
+            chartIAW.setDrawOrder(new CombinedChart.DrawOrder[]{CombinedChart.DrawOrder.LINE,CombinedChart.DrawOrder.BAR});
+
+            Legend l = chartIAW.getLegend();
+            l.setWordWrapEnabled(true);
+            l.setVerticalAlignment(Legend.LegendVerticalAlignment.BOTTOM);
+            l.setHorizontalAlignment(Legend.LegendHorizontalAlignment.CENTER);
+            l.setOrientation(Legend.LegendOrientation.HORIZONTAL);
+            l.setDrawInside(false);
+            l.setTextColor(Color.WHITE);
+
+            YAxis leftAxis = chartIAW.getAxisLeft();
+            leftAxis.setDrawGridLines(false);
+            leftAxis.setAxisMinimum(0f);
+            leftAxis.setAxisMaximum(1f);
+            leftAxis.setTextColor(Color.WHITE);
+            leftAxis.setValueFormatter((value, axis) -> (int)(value*100f)+"%");
+
+            XAxis xAxis = chartIAW.getXAxis();
+            xAxis.setPosition(XAxis.XAxisPosition.BOTH_SIDED);
+
+            chartIAWData = new CombinedData();
+            generateIAWRFILineData(entriesRFI);
+            generateIAWCN0AGCLineData(entriesCN0AGC);
+            generateIAWConstellationLineData(entriesConstellation);
+            generateIAWFusedSpoofLineData(entriesFusedSpoof);
+            generateIAWBarData(entriesFused);
+            LineData dataSets = new LineData();
+            dataSets.addDataSet(setRFI);
+            dataSets.addDataSet(setCN0AGC);
+            dataSets.addDataSet(setConstellation);
+            dataSets.addDataSet(setFusedSpoof);
+            chartIAWData.setData(dataSets);
+            chartIAWData.setData(generateIAWBarData(entriesFused));
+            chartIAW.setData(chartIAWData);
+        }
+    }
+
+    private void generateIAWCN0AGCLineData(ArrayList<Entry> entriesCN0AGC) {
+        setCN0AGC = new LineDataSet(entriesCN0AGC, "C/N₀ vs AGC");
+        setCN0AGC.setColor(getColor(R.color.cn0agc));
+        setCN0AGC.setLineWidth(2.5f);
+        setCN0AGC.setMode(LineDataSet.Mode.CUBIC_BEZIER);
+        setCN0AGC.setDrawValues(false);
+        setCN0AGC.setDrawCircles(false);
+        setCN0AGC.setAxisDependency(YAxis.AxisDependency.LEFT);
+    }
+
+    private void generateIAWConstellationLineData(ArrayList<Entry> entriesConstellation) {
+        setConstellation = new LineDataSet(entriesConstellation, "Δ Constellation");
+        setConstellation.setColor(getColor(R.color.constellation));
+        setConstellation.setLineWidth(2.5f);
+        setConstellation.setMode(LineDataSet.Mode.CUBIC_BEZIER);
+        setConstellation.setDrawValues(false);
+        setConstellation.setDrawCircles(false);
+        setConstellation.setAxisDependency(YAxis.AxisDependency.LEFT);
+    }
+
+    private void generateIAWFusedSpoofLineData(ArrayList<Entry> entriesFusedSpoof) {
+        setFusedSpoof = new LineDataSet(entriesFusedSpoof, "Σ Spoof");
+        setFusedSpoof.setColor(getColor(R.color.fusedSpoof));
+        setFusedSpoof.setLineWidth(2.5f);
+        setFusedSpoof.setMode(LineDataSet.Mode.CUBIC_BEZIER);
+        setFusedSpoof.setDrawValues(false);
+        setFusedSpoof.setDrawCircles(false);
+        setFusedSpoof.setAxisDependency(YAxis.AxisDependency.LEFT);
+    }
+
+    private void generateIAWRFILineData(ArrayList<Entry> entriesRFI) {
+        setRFI = new LineDataSet(entriesRFI, "RFI");
+        setRFI.setColor(getColor(R.color.rfi));
+        setRFI.setLineWidth(2.5f);
+        setRFI.setMode(LineDataSet.Mode.CUBIC_BEZIER);
+        setRFI.setDrawValues(false);
+        setRFI.setDrawCircles(false);
+        setRFI.setAxisDependency(YAxis.AxisDependency.LEFT);
+    }
+
+    private BarData generateIAWBarData(ArrayList<BarEntry> entriesFused) {
+        BarData d = new BarData();
+
+        setFused = new BarDataSet(entriesFused, "Total EW Risk");
+        setFused.setColor(getColor(R.color.fused));
+        setFused.setDrawIcons(false);
+        setFused.setDrawValues(false);
+        setFused.setAxisDependency(YAxis.AxisDependency.LEFT);
+
+        d.addDataSet(setFused);
         return d;
     }
 
@@ -185,22 +339,13 @@ public class MainActivity extends AbstractTORGIActivity implements GnssMeasureme
         osmMap.setBuiltInZoomControls(false);
         osmMap.setMultiTouchControls(true); //needed for pinch zooms
         osmMap.setTilesScaledToDpi(true); //scales tiles to the current screen's DPI, helps with readability of labels
-    }
-
-    @Override
-    public boolean onCreateOptionsMenu(Menu menu) {
-        MenuInflater inflater = getMenuInflater();
-        inflater.inflate(R.menu.menu_main, menu);
-        return true;
+        //osmMap.setTileSource(TileSourceFactory.USGS_SAT);
     }
 
     @Override
     public boolean onOptionsItemSelected(MenuItem item) {
         // Handle item selection
         switch (item.getItemId()) {
-            case R.id.action_settings:
-                //TODO
-                return true;
             case R.id.action_about:
                 startActivity(new Intent(this,AboutActivity.class));
                 return true;
@@ -316,39 +461,54 @@ public class MainActivity extends AbstractTORGIActivity implements GnssMeasureme
 
     @Override
     public void onSatStatusUpdated(final GnssStatus status) {
-        if (status != null) {
+        //ignore
+    }
+
+    @Override
+    public void onEWDataProcessed(DataPoint dp) {
+        if ((dp != null) && (System.currentTimeMillis() > lastChartUpdate + MAX_CHART_UPDATE_RATE)) {
+            lastChartUpdate = System.currentTimeMillis();
+            int constellations = 0;
+            ArrayList<SatMeasurement> measurements = dp.getMeasurements();
+            if (measurements != null) {
+                boolean[] constPresent = new boolean[Constellation.size()];
+                for (SatMeasurement measurement:measurements) {
+                    if ((measurement.getSat() != null) && (measurement.getSat().getConstellation() != null)) {
+                        constPresent[measurement.getSat().getConstellation().getValue()] = true;
+                    }
+                }
+                for (boolean constellation : constPresent) {
+                    if (constellation)
+                        constellations++;
+                }
+            }
+            final int constCount = constellations;
             runOnUiThread(() -> {
-                //TODO
+                if (constCount == 0)
+                    textConstellations.setVisibility(View.INVISIBLE);
+                else {
+                    textConstellations.setText(constCount+" Constellation"+((constCount == 1)?"":"s"));
+                    textConstellations.setVisibility(View.VISIBLE);
+                }
             });
+            GNSSEWValues avg = dp.getAverageMeasurements();
+            if (avg != null)
+                addEWChartEntry(dp.getSpaceTime().getTime(), avg);
+            EWIndicators indicators = EWIndicators.getEWIndicators(dp);
+            if (indicators != null) {
+                addIAWChartEntry(dp.getSpaceTime().getTime(), indicators);
+                final int risk = (int)(100f*indicators.getFusedEWRisk());
+                runOnUiThread(() -> ewWarningView.setWarnPercent(risk));
+            }
         }
     }
 
     @Override
     public void onGnssMeasurementReceived(GnssMeasurementsEvent event) {
-        if (System.currentTimeMillis() > lastChartUpdate + MAX_CHART_UPDATE_RATE) {
-            if (event != null) {
-                final Collection<GnssMeasurement> measurements = event.getMeasurements();
-                if (measurements != null) {
-                    lastChartUpdate = System.currentTimeMillis();
-                    DataPoint dp = new DataPoint(new SpaceTime(currentLoc));
-                    for (GnssMeasurement measurement : measurements) {
-                        Satellite sat = new Satellite(Constellation.get(measurement.getConstellationType()), measurement.getSvid());
-                        SatMeasurement satMeasurement;
-                        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O)
-                            satMeasurement = new SatMeasurement(sat, new GNSSEWValues((float) measurement.getCn0DbHz(), measurement.getAutomaticGainControlLevelDb()));
-                        else
-                            satMeasurement = new SatMeasurement(sat, new GNSSEWValues((float) measurement.getCn0DbHz(), GNSSEWValues.NA));
-                        dp.add(satMeasurement);
-                    }
-                    GNSSEWValues avg = dp.getAverageMeasurements();
-                    if (avg != null)
-                        addChartEntry(dp.getSpaceTime().getTime(), avg);
-                }
-            }
-        }
+        //ignoring the unprocessed data
     }
 
-    private void addChartEntry(final long time, final GNSSEWValues values) {
+    private void addEWChartEntry(final long time, final GNSSEWValues values) {
         if ((time > 0l) && (values != null)) {
             runOnUiThread(() -> {
                 Log.d(TAG,"Chart update #"+(int)chartIndex);
@@ -357,7 +517,6 @@ public class MainActivity extends AbstractTORGIActivity implements GnssMeasureme
                 boolean updatedAGC = false;
                 boolean updatedCN0 = false;
                 if (!Double.isNaN(values.getAgc())) {
-                    //entryAGC = new BarEntry((float) time, (float) values.getAgc());
                     entryAGC = new BarEntry(chartIndex, (float) values.getAgc());
                     if (setAGC != null) {
                         setAGC.addEntry(entryAGC);
@@ -368,7 +527,6 @@ public class MainActivity extends AbstractTORGIActivity implements GnssMeasureme
                     updatedAGC = true;
                 }
                 if (!Float.isNaN(values.getCn0())) {
-                    //entryCN0 = new Entry((float)time,values.getCn0());
                     entryCN0 = new Entry(chartIndex,values.getCn0());
                     if (setCN0 != null) {
                         setCN0.addEntry(entryCN0);
@@ -378,13 +536,88 @@ public class MainActivity extends AbstractTORGIActivity implements GnssMeasureme
                     }
                     updatedCN0 = true;
                 }
-                if ((chartEW == null) && updatedAGC && updatedCN0) {
+                if ((chartEW == null) && updatedAGC && updatedCN0)
                     setupEWchart(entryCN0,entryAGC);
-                }
                 if (updatedAGC || updatedCN0) {
-                    chartData.notifyDataChanged();
+                    chartEWData.notifyDataChanged();
                     chartEW.notifyDataSetChanged();
                     chartEW.invalidate();
+                    chartIndex += 1f;
+                }
+            });
+        }
+    }
+
+    private void addIAWChartEntry(final long time, final EWIndicators indicators) {
+        if ((time > 0l) && (indicators != null)) {
+            runOnUiThread(() -> {
+                Log.d(TAG,"Chart update #"+(int)chartIndex);
+                Entry entryRFI = null;
+                Entry entryCN0AGC = null;
+                Entry entryConstellation = null;
+                Entry entryFusedSpoof = null;
+                BarEntry entryFused = null;
+                boolean updatedRFI = false;
+                boolean updatedCN0AGC = false;
+                boolean updatedConstellation = false;
+                boolean updatedFusedSpoof = false;
+                boolean updatedFused = false;
+                if (!Float.isNaN(indicators.getFusedEWRisk())) {
+                    entryFused = new BarEntry(chartIndex, indicators.getFusedEWRisk());
+                    if (setFused != null) {
+                        setFused.addEntry(entryFused);
+                        if (setFused.getValues().size() > MAX_HISTORY_LENGTH)
+                            setFused.removeFirst();
+                        setFused.notifyDataSetChanged();
+                    }
+                    updatedFused = true;
+                }
+                if (!Float.isNaN(indicators.getLikelihoodRFI())) {
+                    entryRFI = new Entry(chartIndex,indicators.getLikelihoodRFI());
+                    if (setRFI != null) {
+                        setRFI.addEntry(entryRFI);
+                        if (setRFI.getValues().size() > MAX_HISTORY_LENGTH)
+                            setRFI.removeFirst();
+                        setRFI.notifyDataSetChanged();
+                    }
+                    updatedRFI = true;
+                }
+                if (!Float.isNaN(indicators.getLikelihoodRSpoofCN0vsAGC())) {
+                    entryCN0AGC = new Entry(chartIndex,indicators.getLikelihoodRSpoofCN0vsAGC());
+                    if (setCN0AGC != null) {
+                        setCN0AGC.addEntry(entryCN0AGC);
+                        if (setCN0AGC.getValues().size() > MAX_HISTORY_LENGTH)
+                            setCN0AGC.removeFirst();
+                        setCN0AGC.notifyDataSetChanged();
+                    }
+                    updatedCN0AGC = true;
+                }
+                if (!Float.isNaN(indicators.getLikelihoodRSpoofConstellationDisparity())) {
+                    entryConstellation = new Entry(chartIndex,indicators.getLikelihoodRSpoofConstellationDisparity());
+                    if (setConstellation != null) {
+                        setConstellation.addEntry(entryConstellation);
+                        if (setConstellation.getValues().size() > MAX_HISTORY_LENGTH)
+                            setConstellation.removeFirst();
+                        setConstellation.notifyDataSetChanged();
+                    }
+                    updatedConstellation = true;
+                }
+                if (!Float.isNaN(indicators.getFusedLikelihoodOfSpoofing())) {
+                    entryFusedSpoof = new Entry(chartIndex,indicators.getFusedLikelihoodOfSpoofing());
+                    if (setFusedSpoof != null) {
+                        setFusedSpoof.addEntry(entryFusedSpoof);
+                        if (setFusedSpoof.getValues().size() > MAX_HISTORY_LENGTH)
+                            setFusedSpoof.removeFirst();
+                        setFusedSpoof.notifyDataSetChanged();
+                    }
+                    updatedFusedSpoof = true;
+                }
+                if ((chartIAW == null) && updatedRFI && updatedCN0AGC && updatedConstellation && updatedFusedSpoof && updatedFused)
+                    setupIAWchart(entryRFI,entryCN0AGC,entryConstellation,entryFusedSpoof,entryFused);
+                if (updatedRFI || updatedCN0AGC || updatedConstellation || updatedFusedSpoof || updatedFused) {
+                    chartIAWData.notifyDataChanged();
+                    chartIAW.notifyDataSetChanged();
+                    chartIAW.invalidate();
                     chartIndex += 1f;
                 }
             });
@@ -399,7 +632,7 @@ public class MainActivity extends AbstractTORGIActivity implements GnssMeasureme
             int sats = loc.getExtras().getInt("satellites");
             StringBuffer label = new StringBuffer();
             if (sats > 0)
-                label.append(sats+" satellites in fix");
+                label.append(sats+" satellites");
             if (loc.hasAccuracy()) {
                 if (sats > 0)
                     label.append(", ");
@@ -411,8 +644,6 @@ public class MainActivity extends AbstractTORGIActivity implements GnssMeasureme
 
     @Override
     public void onProviderChanged(final String provider, final boolean enabled) {
-        runOnUiThread(() -> {
-            //TODO
-        });
+        //ignore
     }
 }

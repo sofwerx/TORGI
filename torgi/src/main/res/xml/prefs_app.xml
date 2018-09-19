@@ -1,0 +1,17 @@
+<PreferenceScreen xmlns:android="http://schemas.android.com/apk/res/android">
+    <PreferenceCategory
+        android:title="@string/pref_category_logging">
+
+        <CheckBoxPreference
+            android:key="bigdata"
+            android:title="@string/big_data"
+            android:summary="@string/big_data_battery"
+            android:defaultValue="true"/>
+
+        <Preference
+            android:key="savedir"
+            android:title="@string/pref_torgi_dir"
+            android:summary="@string/pref_torgi_dir_narrative"/>
+
+    </PreferenceCategory>
+</PreferenceScreen>

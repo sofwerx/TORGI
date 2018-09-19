@@ -1,12 +1,20 @@
 <resources>
     <string name="app_name">TORGI Viewer</string>
-    <string name="action_settings">Settings</string>
+    <string name="torgi">TORGI</string>
+    <string name="viewer">Viewer</string>
     <string name="measurement">Measurements:</string>
     <string name="used_in_fix">Used in current fix:</string>
+    <string name="live">Live</string>
+    <string name="recorded">Recorded</string>
 
     <string name="alert_dual_install_title">Multiple TORGI Apps</string>
     <string name="alert_dual_install_narrative">The Logger version of TORGI was found on this device.  You probably should not have both installed on the same device.</string>
     <string name="alert_dual_install_uninstall">Uninstall Logger</string>
+
+    <string name="risk_low">GNSS Risk Low</string>
+    <string name="risk_medium">GNSS Risk Medium</string>
+    <string name="risk_high">GNSS Risk HIGH</string>
+    <string name="risk_unknown">Determining current GNSS risk...</string>
 
     <!-- About -->
     <string name="legal">Legal</string>

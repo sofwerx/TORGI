@@ -13,4 +13,16 @@
     <string name="big_data">Big Data</string>
     <string name="normal_data">Normal Data</string>
     <string name="big_data_battery">Collecting Big Data gets more information, but will use battery a bit faster and takes up more file space.</string>
+    <string name="data_saved_location">Data saved in </string>
+
+    //<string name="torgi_ready_share">TORGI collected new data</string>
+    //<string name="torgi_ready_share_narrative">TORGI has new data to send back</string>
+    <string name="share">Share</string>
+
+    <!--Preferences-->
+    <string name="action_settings">Settings</string>
+    <string name="pref_category_logging">Logging</string>
+    <string name="pref_torgi_dir">Saved file directory</string>
+    <string name="pref_torgi_dir_narrative">TORGI will save files in this directory.</string>
+    <string name="title_activity_b">BActivity</string>
 </resources>

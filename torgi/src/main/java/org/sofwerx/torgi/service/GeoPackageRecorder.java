@@ -13,11 +13,20 @@ import android.os.Environment;
 import android.os.Handler;
 import android.os.HandlerThread;
 import android.util.Log;
+import android.widget.Toast;
 
+import org.sofwerx.torgi.Config;
+import org.sofwerx.torgi.R;
 import org.sofwerx.torgi.SatStatus;
+import org.sofwerx.torgi.gnss.DataPoint;
+import org.sofwerx.torgi.gnss.helper.GeoPackageGPSPtHelper;
+import org.sofwerx.torgi.gnss.helper.GeoPackageSatDataHelper;
+import org.sofwerx.torgi.listener.GeoPackageRetrievalListener;
 
+import java.io.File;
 import java.sql.SQLException;
 import java.text.SimpleDateFormat;
+import java.util.ArrayList;
 import java.util.Calendar;
 import java.util.Collection;
 import java.util.Date;
@@ -49,14 +58,18 @@ import mil.nga.geopackage.factory.GeoPackageFactory;
 import mil.nga.geopackage.features.columns.GeometryColumns;
 import mil.nga.geopackage.features.columns.GeometryColumnsDao;
 import mil.nga.geopackage.features.user.FeatureColumn;
+import mil.nga.geopackage.features.user.FeatureCursor;
 import mil.nga.geopackage.features.user.FeatureDao;
 import mil.nga.geopackage.features.user.FeatureRow;
 import mil.nga.geopackage.features.user.FeatureTable;
 import mil.nga.geopackage.geom.GeoPackageGeometryData;
+import mil.nga.geopackage.user.UserCoreResult;
+import mil.nga.geopackage.user.UserCoreRow;
 import mil.nga.geopackage.user.UserTable;
 import mil.nga.geopackage.user.custom.UserCustomColumn;
 import mil.nga.geopackage.user.custom.UserCustomDao;
 import mil.nga.geopackage.user.custom.UserCustomRow;
+import mil.nga.sf.Geometry;
 import mil.nga.sf.GeometryType;
 import mil.nga.sf.Point;
 import mil.nga.sf.proj.ProjectionConstants;
@@ -74,7 +87,6 @@ public class GeoPackageRecorder extends HandlerThread {
     private final static String TAG = "TORGI.GpkgRec";
     private Handler handler;
     private final Context context;
-    //private Looper looper = null;
     private AtomicBoolean ready = new AtomicBoolean(false);
 
     private final static String SENSOR_TIME = "time";
@@ -106,6 +118,18 @@ public class GeoPackageRecorder extends HandlerThread {
     private final static String SENSOR_STATIONARY = "stationary";
     private final static String SENSOR_MOTION = "motion";
 
+    private final static String SAT_DATA_MEASSURED_TIME = "local_time";
+    private final static String SAT_DATA_SVID = "svid";
+    private final static String SAT_DATA_CONSTELLATION = "constellation";
+    private final static String SAT_DATA_CN0 = "cn0";
+    private final static String SAT_DATA_AGC = "agc";
+    //private final static String SAT_DATA_SAT_TIME_NANOS = "sat_time_nanos";
+
+    private final static String GPS_OBS_PT_LAT = "Lat";
+    private final static String GPS_OBS_PT_LNG = "Lon";
+    private final static String GPS_OBS_PT_ALT = "Alt";
+    private final static String GPS_OBS_PT_GPS_TIME = "GPSTime";
+
     private final static SimpleDateFormat fmtFilenameFriendlyTime = new SimpleDateFormat("YYYYMMdd HHmmss");
 
     HashMap<Integer, String> SatType = new HashMap<Integer, String>() {
@@ -130,6 +154,23 @@ public class GeoPackageRecorder extends HandlerThread {
     protected void onLooperPrepared() {
         handler = new Handler();
         if (GPSgpkg == null) {
+            String fileFolder = Config.getInstance(context).getSavedDir();
+            if (fileFolder != null) {
+                File file = new File(fileFolder);
+                if (!"TORGI".equalsIgnoreCase(file.getName())) {
+                    File torgi = new File(file,"TORGI");
+                    torgi.mkdirs();
+                    torgi.setReadable(true);
+                    GpkgFolder = torgi.getPath();
+                } else {
+                    if (file.exists())
+                        GpkgFolder = fileFolder;
+                }
+            }
+            if (GpkgFolder == null) {
+                Log.e(TAG,"Unable to find TORGI storage location");
+                GpkgFolder = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS).getAbsolutePath();
+            }
             try {
                 GPSgpkg = setupGpkgDB(context, GpkgFolder, GpkgFilename);
             } catch (SQLException e) {
@@ -147,8 +188,8 @@ public class GeoPackageRecorder extends HandlerThread {
     private static final String ID_COLUMN = "id";
     private static final String GEOMETRY_COLUMN = "geom";
 
-    String GpkgFilename = "TORGI-GNSS";
-    String GpkgFolder = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS).getAbsolutePath();
+    private String GpkgFilename = "TORGI-GNSS";
+    private String GpkgFolder = null;
 
     private static final String PtsTableName = "gps_observation_points";
     private static final String satTblName = "sat_data";
@@ -173,11 +214,31 @@ public class GeoPackageRecorder extends HandlerThread {
     UserTable ClkTable = null;
     UserTable MotionTable = null;
 
-    /*public String getGpkgFilename() {
-        return GpkgFilename;
-    }*/
+    private void removeTempFiles() {
+        try {
+            String dirPath = Config.getInstance(context).getSavedDir();
+            if (dirPath != null) {
+                File dir = new File(dirPath);
+                if (dir.exists()) {
+                    File[] files = dir.listFiles();
+                    if ((files != null) && (files.length > 0)) {
+                        for (File file : files) {
+                            String fname = file.getName();
+                            if ((fname != null) && fname.endsWith("-journal"))
+                                file.delete();
+                        }
+                    }
+                }
+            }
+        } catch (Exception ignore) {}
+    }
 
-    public void shutdown() {
+    /**
+     * Shutsdown the recorder and provides the file path for the database
+     * @return
+     */
+    public String shutdown() {
+        Toast.makeText(context, context.getString(R.string.data_saved_location)+Config.getInstance(context).getSavedDir(), Toast.LENGTH_LONG).show();
         Log.d(TAG,"GeoPackageRecorder.shutdown()");
         ready.set(false);
         getLooper().quit();
@@ -185,6 +246,8 @@ public class GeoPackageRecorder extends HandlerThread {
             GPSgpkg.close();
             GPSgpkg = null;
         }
+        removeTempFiles();
+        return GpkgFilename;
     }
 
     public void onSatelliteStatusChanged(final GnssStatus status) {
@@ -219,6 +282,88 @@ public class GeoPackageRecorder extends HandlerThread {
                 } catch (Exception e) {
                     e.printStackTrace();
                 }
+            });
+        }
+    }
+
+    public void getGPSObservationPoints(long startTime, long stopTime, final GeoPackageRetrievalListener listener) {
+        if (ready.get() && (handler != null) && (listener != null)) {
+            final String MAX_ROWS = Integer.toString(Integer.MAX_VALUE);
+            final String[] range = {Long.toString(startTime),Long.toString(stopTime)};
+            handler.post(() -> {
+                ArrayList<GeoPackageGPSPtHelper> measurements = new ArrayList<>();
+                FeatureDao featDao = GPSgpkg.getFeatureDao(PtsTableName);
+                FeatureCursor resultCursor = featDao.query(GPS_OBS_PT_GPS_TIME+" >= ? AND "+GPS_OBS_PT_GPS_TIME+" < ?",range,null,null,null, MAX_ROWS);
+                if (resultCursor != null) {
+                    final int rowID = resultCursor.getColumnIndex(ID_COLUMN);
+                    final int rowLat = resultCursor.getColumnIndex(GPS_OBS_PT_LAT);
+                    final int rowLng = resultCursor.getColumnIndex(GPS_OBS_PT_LNG);
+                    final int rowAlt = resultCursor.getColumnIndex(GPS_OBS_PT_ALT);
+                    final int rowTime = resultCursor.getColumnIndex(GPS_OBS_PT_GPS_TIME);
+                    try{
+                        //FIXME this is a simplified portion of the full table; additional fields may need to be added later
+                        FeatureRow row;
+                        while(resultCursor.moveToNext()){
+                            row = resultCursor.getRow();
+                            GeoPackageGPSPtHelper helper = new GeoPackageGPSPtHelper();
+                            helper.setId(row.getValue(rowID));
+                            helper.setLat(row.getValue(rowLat));
+                            helper.setLng(row.getValue(rowLng));
+                            helper.setAlt(row.getValue(rowAlt));
+                            helper.setTime(row.getValue(rowTime));
+                            measurements.add(helper);
+                        }
+                    } finally {
+                        resultCursor.close();
+                    }
+                }
+                if (!measurements.isEmpty())
+                    listener.onGnssGeoPtRetrieved(measurements);
+            });
+        }
+    }
+
+    /**
+     * Retrieves the GNSS Measurements between two times
+     * @param startTime unix time
+     * @param stopTime unix time
+     * @param listener
+     */
+    public void getGnssMeasurements(long startTime, long stopTime, final GeoPackageRetrievalListener listener) {
+        if (ready.get() && (handler != null) && (listener != null)) {
+            final String MAX_ROWS = Integer.toString(Integer.MAX_VALUE);
+            final String[] range = {Long.toString(startTime),Long.toString(stopTime)};
+            handler.post(() -> {
+                ArrayList<GeoPackageSatDataHelper> measurements = new ArrayList<>();
+                SimpleAttributesDao gnssDao = RTE.getSimpleAttributesDao(satTblName);
+                UserCoreResult resultCursor = gnssDao.query(SAT_DATA_MEASSURED_TIME+" >= ? AND "+SAT_DATA_MEASSURED_TIME+" < ?",range,null,null,null, MAX_ROWS);
+                if (resultCursor != null) {
+                    final int rowID = resultCursor.getColumnIndex(ID_COLUMN);
+                    final int rowSVID = resultCursor.getColumnIndex(SAT_DATA_SVID);
+                    final int rowAGC = resultCursor.getColumnIndex(SAT_DATA_AGC);
+                    final int rowCN0 = resultCursor.getColumnIndex(SAT_DATA_CN0);
+                    final int rowConstellation = resultCursor.getColumnIndex(SAT_DATA_CONSTELLATION);
+                    final int rowMeassuredTime = resultCursor.getColumnIndex(SAT_DATA_MEASSURED_TIME);
+                    try{
+                        //FIXME this is a simplified portion of the full table; additional fields may need to be added later
+                        UserCoreRow row;
+                        while(resultCursor.moveToNext()){
+                            row = resultCursor.getRow();
+                            GeoPackageSatDataHelper helper = new GeoPackageSatDataHelper();
+                            helper.setId(row.getValue(rowID));
+                            helper.setAgc(row.getValue(rowAGC));
+                            helper.setCn0(row.getValue(rowCN0));
+                            helper.setConstellation(row.getValue(rowConstellation));
+                            helper.setSvid(row.getValue(rowSVID));
+                            helper.setMeassuredTime(row.getValue(rowMeassuredTime));
+                            measurements.add(helper);
+                        }
+                    } finally {
+                        resultCursor.close();
+                    }
+                }
+                if (!measurements.isEmpty())
+                    listener.onGnssSatDataRetrieved(measurements);
             });
         }
     }
@@ -294,6 +439,7 @@ public class GeoPackageRecorder extends HandlerThread {
 
                     SatRowsToMap.clear();
 
+                    final long time = System.currentTimeMillis();
                     for (final GnssMeasurement g : gm) {
                         String con = SatType.get(g.getConstellationType());
                         String hashkey = con + g.getSvid();
@@ -301,9 +447,10 @@ public class GeoPackageRecorder extends HandlerThread {
                         SimpleAttributesDao satDao = RTE.getSimpleAttributesDao(satTblName);
                         SimpleAttributesRow satrow = satDao.newRow();
 
-                        satrow.setValue("svid", g.getSvid());
-                        satrow.setValue("constellation", con);
-                        satrow.setValue("cn0", g.getCn0DbHz());
+                        satrow.setValue(SAT_DATA_MEASSURED_TIME, time);
+                        satrow.setValue(SAT_DATA_SVID, g.getSvid());
+                        satrow.setValue(SAT_DATA_CONSTELLATION, con);
+                        satrow.setValue(SAT_DATA_CN0, g.getCn0DbHz());
 
                         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
                             if (g.hasAutomaticGainControlLevelDb()) {
@@ -314,7 +461,7 @@ public class GeoPackageRecorder extends HandlerThread {
                                 satrow.setValue("has_agc", 0);
                             }
                         } else {
-                            satrow.setValue("agc", (double) 0.0);
+                            satrow.setValue(SAT_DATA_AGC, (double) 0.0);
                             satrow.setValue("has_agc", 0);
                         }
                         satrow.setValue("sync_state_flags", g.getState());
@@ -540,11 +687,11 @@ public class GeoPackageRecorder extends HandlerThread {
 
                         frow.setGeometry(geomData);
 
-                        frow.setValue("Lat", (double) loc.getLatitude());
-                        frow.setValue("Lon", (double) loc.getLongitude());
-                        frow.setValue("Alt", (double) loc.getAltitude());
+                        frow.setValue(GPS_OBS_PT_LAT, (double) loc.getLatitude());
+                        frow.setValue(GPS_OBS_PT_LNG, (double) loc.getLongitude());
+                        frow.setValue(GPS_OBS_PT_ALT, (double) loc.getAltitude());
                         frow.setValue("Provider", loc.getProvider());
-                        frow.setValue("GPSTime", loc.getTime());
+                        frow.setValue(GPS_OBS_PT_GPS_TIME, loc.getTime());
                         frow.setValue("FixSatCount", loc.getExtras().getInt("satellites"));
                         if (loc.hasAccuracy()) {
                             frow.setValue("RadialAccuracy", (double) loc.getAccuracy());
@@ -649,10 +796,21 @@ public class GeoPackageRecorder extends HandlerThread {
         }
     }
 
-    private GeoPackage setupGpkgDB(Context context, String folder, String file) throws GeoPackageException, SQLException {
-        GpkgFilename = folder + "/" + file + "-" + fmtFilenameFriendlyTime.format(System.currentTimeMillis()) + ".gpkg";
+    private GeoPackage openDatabase(String database) {
+        if (gpkg == null) {
+            GeoPackageManager gpkgMgr = GeoPackageFactory.getManager(context);
+            gpkg = gpkgMgr.open(database, true);
+            if (gpkg == null)
+                throw new GeoPackageException("Failed to open GeoPackage database " + database);
+        }
+        return gpkg;
+    }
 
+    private GeoPackage setupGpkgDB(Context context, String folder, String file) throws GeoPackageException, SQLException {
+        String filename = file + "-" + fmtFilenameFriendlyTime.format(System.currentTimeMillis()) + ".gpkg";
         GeoPackageManager gpkgMgr = GeoPackageFactory.getManager(context);
+
+        GpkgFilename = folder + "/" + filename;
         if (!gpkgMgr.exists(GpkgFilename)) {
             try {
                 gpkgMgr.create(GpkgFilename);
@@ -660,12 +818,8 @@ public class GeoPackageRecorder extends HandlerThread {
                 e.printStackTrace();
                 return null;
             }
-
         }
-        gpkg = gpkgMgr.open(GpkgFilename, true);
-        if (gpkg == null) {
-            throw new GeoPackageException("Failed to open GeoPackage database " + GpkgFilename);
-        }
+        gpkg = openDatabase(GpkgFilename);
 
         // create SRS & feature tables
         SpatialReferenceSystemDao srsDao = gpkg.getSpatialReferenceSystemDao();
@@ -705,11 +859,11 @@ public class GeoPackageRecorder extends HandlerThread {
         tblcols.add(FeatureColumn.createPrimaryKeyColumn(colNum++, ID_COLUMN));
         tblcols.add(FeatureColumn.createGeometryColumn(colNum++, GEOMETRY_COLUMN, GeometryType.POINT, false, null));
         tblcols.add(FeatureColumn.createColumn(colNum++, "SysTime", DATETIME, false, null));
-        tblcols.add(FeatureColumn.createColumn(colNum++, "Lat", REAL, false, null));
-        tblcols.add(FeatureColumn.createColumn(colNum++, "Lon", REAL, false, null));
-        tblcols.add(FeatureColumn.createColumn(colNum++, "Alt", REAL, false, null));
+        tblcols.add(FeatureColumn.createColumn(colNum++, GPS_OBS_PT_LAT, REAL, false, null));
+        tblcols.add(FeatureColumn.createColumn(colNum++, GPS_OBS_PT_LNG, REAL, false, null));
+        tblcols.add(FeatureColumn.createColumn(colNum++, GPS_OBS_PT_ALT, REAL, false, null));
         tblcols.add(FeatureColumn.createColumn(colNum++, "Provider", TEXT, false, null));
-        tblcols.add(FeatureColumn.createColumn(colNum++, "GPSTime", INTEGER, false, null));
+        tblcols.add(FeatureColumn.createColumn(colNum++, GPS_OBS_PT_GPS_TIME, INTEGER, false, null));
         tblcols.add(FeatureColumn.createColumn(colNum++, "FixSatCount", INTEGER, false, null));
         tblcols.add(FeatureColumn.createColumn(colNum++, "HasRadialAccuracy", INTEGER, false, null));
         tblcols.add(FeatureColumn.createColumn(colNum++, "HasVerticalAccuracy", INTEGER, false, null));
@@ -766,10 +920,11 @@ public class GeoPackageRecorder extends HandlerThread {
 //        tblcols.add(FeatureColumn.createColumn(colNum++, DublinCoreType.DESCRIPTION.getName(), GeoPackageDataType.TEXT, false, null));
 
         // android GNSS measurements
-        tblcols.add(UserCustomColumn.createColumn(colNum++, "svid", INTEGER, true, null));
-        tblcols.add(UserCustomColumn.createColumn(colNum++, "constellation", TEXT, true, null));
-        tblcols.add(UserCustomColumn.createColumn(colNum++, "cn0", REAL, true, null));
-        tblcols.add(UserCustomColumn.createColumn(colNum++, "agc", REAL, true, null));
+        tblcols.add(UserCustomColumn.createColumn(colNum++, SAT_DATA_MEASSURED_TIME, INTEGER, true, null));
+        tblcols.add(UserCustomColumn.createColumn(colNum++, SAT_DATA_SVID, INTEGER, true, null));
+        tblcols.add(UserCustomColumn.createColumn(colNum++, SAT_DATA_CONSTELLATION, TEXT, true, null));
+        tblcols.add(UserCustomColumn.createColumn(colNum++, SAT_DATA_CN0, REAL, true, null));
+        tblcols.add(UserCustomColumn.createColumn(colNum++, SAT_DATA_AGC, REAL, true, null));
         tblcols.add(UserCustomColumn.createColumn(colNum++, "has_agc", INTEGER, true, null));
         tblcols.add(UserCustomColumn.createColumn(colNum++, "in_fix", INTEGER, true, null));
 

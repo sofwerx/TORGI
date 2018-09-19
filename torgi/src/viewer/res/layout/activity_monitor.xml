@@ -8,6 +8,15 @@
     android:theme="@style/AppTheme"
     tools:context=".ui.MainActivity">
 
+    <Toolbar
+        android:id="@+id/mainToolbar"
+        android:layout_width="match_parent"
+        android:layout_height="?attr/actionBarSize"
+        android:background="@drawable/dark_gradient"
+        android:navigationIcon="@drawable/icon_sofwerx_white"
+        android:subtitle="@string/viewer"
+        android:title="@string/torgi"/>
+
     <RelativeLayout
         android:layout_width="match_parent"
         android:layout_height="0dp"
@@ -17,7 +26,7 @@
             android:id="@+id/frameLabelOps"
             android:layout_width="wrap_content"
             android:layout_height="match_parent"
-            android:background="@color/darkgrey"
+            android:background="@drawable/dark_gradient_vert_top"
             android:padding="3dp"
             android:foregroundGravity="center">
             <org.sofwerx.torgi.ui.VerticalLabelView
@@ -42,10 +51,19 @@
                 android:layout_height="wrap_content">
 
                 <TextView
+                    android:id="@+id/mainLiveIndicator"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:gravity="center_vertical"
+                    android:layout_centerInParent="true"
+                    android:drawableStart="@drawable/ic_satellite"
+                    android:text="@string/live"
+                    android:textColor="@color/brightgreen"/>
+
+                <TextView
                     android:id="@+id/monitorTextOverview"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:drawableStart="@drawable/ic_satellite"
                     android:gravity="center_vertical"
                     android:text="No fix"
                     android:layout_alignParentStart="true"/>
@@ -54,7 +72,6 @@
                     android:id="@+id/monitorConstellationCount"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:drawableEnd="@drawable/ic_satellite"
                     android:gravity="center_vertical"
                     android:text="Unknown constellation"
                     android:layout_alignParentEnd="true"/>
@@ -74,7 +91,7 @@
     <View
         android:layout_width="match_parent"
         android:layout_height="2dp"
-        android:background="@android:color/white"
+        android:background="@color/darkgrey"
         android:layout_margin="6dp"/>
 
     <RelativeLayout
@@ -86,7 +103,7 @@
             android:id="@+id/frameLabelAnalysis"
             android:layout_width="wrap_content"
             android:layout_height="match_parent"
-            android:background="@color/darkgrey"
+            android:background="@drawable/dark_gradient_vert"
             android:padding="3dp"
             android:foregroundGravity="center">
             <org.sofwerx.torgi.ui.VerticalLabelView

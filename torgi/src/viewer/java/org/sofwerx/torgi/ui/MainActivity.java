@@ -5,20 +5,18 @@ import android.content.ActivityNotFoundException;
 import android.content.Intent;
 import android.content.SharedPreferences;
 import android.graphics.Color;
-import android.location.GnssMeasurement;
 import android.location.GnssMeasurementsEvent;
 import android.location.GnssStatus;
 import android.location.Location;
 import android.net.Uri;
-import android.os.Build;
 import android.os.Bundle;
 import android.preference.PreferenceManager;
 import android.util.Log;
-import android.view.Menu;
-import android.view.MenuInflater;
 import android.view.MenuItem;
 import android.view.View;
 import android.widget.TextView;
+import android.widget.Toast;
+import android.widget.Toolbar;
 
 import com.github.mikephil.charting.charts.CombinedChart;
 import com.github.mikephil.charting.components.Legend;
@@ -32,7 +30,11 @@ import com.github.mikephil.charting.data.Entry;
 import com.github.mikephil.charting.data.LineData;
 import com.github.mikephil.charting.data.LineDataSet;
 
+import org.osmdroid.tileprovider.constants.OpenStreetMapTileProviderConstants;
+import org.osmdroid.tileprovider.tilesource.TileSourceFactory;
 import org.osmdroid.util.GeoPoint;
+import org.osmdroid.views.overlay.Overlay;
+import org.osmdroid.views.overlay.TilesOverlay;
 import org.osmdroid.views.overlay.gestures.RotationGestureOverlay;
 import org.sofwerx.torgi.R;
 import org.sofwerx.torgi.gnss.Constellation;
@@ -47,6 +49,7 @@ import org.sofwerx.torgi.util.PackageUtil;
 import java.text.DecimalFormat;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
+import java.util.Iterator;
 
 public class MainActivity extends AbstractTORGIActivity implements GnssMeasurementListener {
     private final static long MAX_CHART_UPDATE_RATE = 500l;
@@ -67,7 +70,7 @@ public class MainActivity extends AbstractTORGIActivity implements GnssMeasureme
     private CombinedData chartEWData = null;
     private CombinedChart chartIAW = null;
     private CombinedData chartIAWData = null;
-    private TextView textOverview,textConstellations;
+    private TextView textOverview,textConstellations,textLive;
     private GNSSStatusView ewWarningView;
 
     //Observed GNSS values
@@ -85,12 +88,41 @@ public class MainActivity extends AbstractTORGIActivity implements GnssMeasureme
 
     private boolean nagAboutDualInstalls = true;
 
+    private boolean live = true;
+
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+        Toolbar toolbar = findViewById(R.id.mainToolbar);
+        setActionBar(toolbar);
         textOverview = findViewById(R.id.monitorTextOverview);
         textConstellations = findViewById(R.id.monitorConstellationCount);
+        textLive = findViewById(R.id.mainLiveIndicator);
+        textLive.setOnClickListener(v -> updateLive(!live));
         ewWarningView = findViewById(R.id.mainEWStatusView);
         osmMapSetup();
+    }
+
+    private void updateLive(boolean live) {
+        if (this.live != live) {
+            //TODO this.live = live;
+            live = true; //TODO
+            if (live) {
+                textLive.setText(getString(R.string.live));
+                textLive.setTextColor(getColor(R.color.brightgreen));
+                textLive.setCompoundDrawablesWithIntrinsicBounds(R.drawable.ic_satellite,0,0,0);
+                Toast.makeText(this, "This will eventually toggle between viewing realtime and recorded.", Toast.LENGTH_SHORT).show();
+
+                //TODO temp for testing
+                //new Heatmap(this,osmMap);
+                //if (serviceBound)
+                //    torgiService.getHistory();
+
+            } else {
+                textLive.setText(getString(R.string.recorded));
+                textLive.setTextColor(getColor(R.color.brightred));
+                textLive.setCompoundDrawablesWithIntrinsicBounds(R.drawable.ic_history,0,0,0);
+            }
+        }
     }
 
     @Override
@@ -307,22 +339,13 @@ public class MainActivity extends AbstractTORGIActivity implements GnssMeasureme
         osmMap.setBuiltInZoomControls(false);
         osmMap.setMultiTouchControls(true); //needed for pinch zooms
         osmMap.setTilesScaledToDpi(true); //scales tiles to the current screen's DPI, helps with readability of labels
-    }
-
-    @Override
-    public boolean onCreateOptionsMenu(Menu menu) {
-        MenuInflater inflater = getMenuInflater();
-        inflater.inflate(R.menu.menu_main, menu);
-        return true;
+        //osmMap.setTileSource(TileSourceFactory.USGS_SAT);
     }
 
     @Override
     public boolean onOptionsItemSelected(MenuItem item) {
         // Handle item selection
         switch (item.getItemId()) {
-            case R.id.action_settings:
-                //TODO
-                return true;
             case R.id.action_about:
                 startActivity(new Intent(this,AboutActivity.class));
                 return true;
@@ -609,7 +632,7 @@ public class MainActivity extends AbstractTORGIActivity implements GnssMeasureme
             int sats = loc.getExtras().getInt("satellites");
             StringBuffer label = new StringBuffer();
             if (sats > 0)
-                label.append(sats+" satellites in fix");
+                label.append(sats+" satellites");
             if (loc.hasAccuracy()) {
                 if (sats > 0)
                     label.append(", ");

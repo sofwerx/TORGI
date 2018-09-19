@@ -9,6 +9,9 @@
     <color name="red_warning">#FFFF00</color>
     <color name="darkgrey">#333333</color>
 
+    <color name="brightgreen">#FF77FF77</color>
+    <color name="brightred">#FFFF7777</color>
+
     <!-- chart colors -->
     <color name="cn0">#FFAAAA</color>
     <color name="agc">#FFFFAA</color>

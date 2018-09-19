@@ -14,6 +14,8 @@ public class DataPoint {
     private SpaceTime spaceTime;
     private ArrayList<SatMeasurement> measurements = null;
 
+    public DataPoint() {}
+
     public DataPoint(SpaceTime spaceTime, ArrayList<SatMeasurement> measurements) {
         this.spaceTime = spaceTime;
         this.measurements = measurements;

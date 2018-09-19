@@ -13,7 +13,7 @@
         android:id="@+id/aboutLogo"
         android:layout_width="match_parent"
         android:layout_height="50dp"
-        android:src="@mipmap/ic_launcher"
+        android:src="@drawable/ic_notification_torgi"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toTopOf="parent" />
@@ -24,7 +24,7 @@
         android:fadingEdgeLength="40dp"
         android:requiresFadingEdge="vertical"
         app:layout_constraintTop_toBottomOf="@id/aboutLogo"
-        app:layout_constraintBottom_toTopOf="@id/aboutCopyright"
+        app:layout_constraintBottom_toTopOf="@id/aboutSofwerx"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
         tools:layout_editor_absoluteX="8dp">
@@ -87,6 +87,15 @@
 
         </LinearLayout>
     </ScrollView>
+
+    <ImageView
+        android:id="@+id/aboutSofwerx"
+        android:layout_width="match_parent"
+        android:layout_height="50dp"
+        android:src="@drawable/sofwerx_logo_white"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintBottom_toTopOf="@+id/aboutCopyright" />
 
     <TextView
         android:id="@+id/aboutCopyright"

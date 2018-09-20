@@ -27,13 +27,17 @@ import android.support.v4.content.ContextCompat;
 import android.support.v4.content.FileProvider;
 import android.util.Log;
 
+import org.sofwerx.torgi.Config;
 import org.sofwerx.torgi.gnss.DataPoint;
+import org.sofwerx.torgi.gnss.EWIndicators;
+import org.sofwerx.torgi.gnss.LatLng;
 import org.sofwerx.torgi.gnss.helper.GeoPackageGPSPtHelper;
 import org.sofwerx.torgi.gnss.helper.GeoPackageSatDataHelper;
 import org.sofwerx.torgi.listener.GeoPackageRetrievalListener;
 import org.sofwerx.torgi.listener.GnssMeasurementListener;
 import org.sofwerx.torgi.R;
 import org.sofwerx.torgi.listener.SensorListener;
+import org.sofwerx.torgi.ui.Heatmap;
 
 import java.io.File;
 import java.util.ArrayList;
@@ -55,6 +59,8 @@ public class TorgiService extends Service {
     private GeoPackageRecorder geoPackageRecorder = null;
     private SensorService sensorService = null;
     private Location currentLocation = null;
+    private ArrayList<LatLng> history = null;
+    public final static int MAX_HISTORY_LENGTH = 50;
 
     public void setListener(GnssMeasurementListener listener) {
         this.listener = listener;
@@ -144,7 +150,11 @@ public class TorgiService extends Service {
         }
     };
 
-    public void getHistory() {
+    public ArrayList<LatLng> getLocationHistory() {
+        return history;
+    }
+
+    public void retreiveHistoryFromGeoPackage() {
         if (geoPackageRecorder != null) {
             GeoPackageRetrievalListener listener = new GeoPackageRetrievalListener() {
                 @Override
@@ -177,6 +187,13 @@ public class TorgiService extends Service {
 
         public void onLocationChanged(final Location loc) {
             currentLocation = loc;
+            if (history == null)
+                history = new ArrayList<>();
+            history.add(new LatLng(loc.getLatitude(),loc.getLongitude()));
+            if (history.size() > 1) {
+                if (history.size() > MAX_HISTORY_LENGTH)
+                    history.remove(0);
+            }
             if (geoPackageRecorder != null)
                 geoPackageRecorder.onLocationChanged(loc);
             if (listener != null)
@@ -225,11 +242,9 @@ public class TorgiService extends Service {
             if (file.exists()) {
                 Intent intentShareFile = new Intent(Intent.ACTION_SEND);
                 intentShareFile.setType("application/octet-stream");
-                //intentShareFile.setType("application/pdf");
                 intentShareFile.putExtra(Intent.EXTRA_STREAM,
                         FileProvider.getUriForFile(this, this.getApplicationContext().getPackageName() + ".geopackage.provider",file));
                 intentShareFile.putExtra(Intent.EXTRA_SUBJECT, file.getName());
-                //intentShareFile.putExtra(Intent.EXTRA_TEXT, getString(R.string.torgi_ready_share_narrative));
                 intentShareFile.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
                 startActivity(Intent.createChooser(intentShareFile, getString(R.string.share)));
             }
@@ -303,7 +318,13 @@ public class TorgiService extends Service {
     }
 
     public void onEWDataProcessed(DataPoint dp) {
-        if ((dp != null) && (listener != null))
-            listener.onEWDataProcessed(dp);
+        if (dp != null) {
+            if (Config.getInstance(this).processEWOnboard() || (listener != null)) {
+                EWIndicators indicators = EWIndicators.getEWIndicators(dp);
+                Heatmap.put(dp, indicators);
+                if (listener != null)
+                    listener.onEWDataProcessed(dp, indicators);
+            }
+        }
     }
 }

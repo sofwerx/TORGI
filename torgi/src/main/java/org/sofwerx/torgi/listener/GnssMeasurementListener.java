@@ -7,6 +7,7 @@ import android.location.Location;
 
 import org.sofwerx.torgi.SatStatus;
 import org.sofwerx.torgi.gnss.DataPoint;
+import org.sofwerx.torgi.gnss.EWIndicators;
 
 import java.util.ArrayList;
 import java.util.Collection;
@@ -18,6 +19,6 @@ public interface GnssMeasurementListener {
     void onSatStatusUpdated(GnssStatus status);
     void onLocationChanged(Location loc);
     void onGnssMeasurementReceived(GnssMeasurementsEvent event);
-    void onEWDataProcessed(DataPoint dp);
+    void onEWDataProcessed(DataPoint dp,EWIndicators indicators);
     void onProviderChanged(String provider, boolean enabled);
 }

@@ -26,4 +26,6 @@
     <string name="pref_torgi_dir">Saved file directory</string>
     <string name="pref_torgi_dir_narrative">TORGI will save files in this directory.</string>
     <string name="title_activity_b">BActivity</string>
+    <string name="device_callsign">Device Callsign</string>
+    <string name="device_callsign_narrative">How this device identifies itself on a network</string>
 </resources>

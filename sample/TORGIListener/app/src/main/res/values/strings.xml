@@ -1,3 +1,4 @@
 <resources>
     <string name="app_name">TORGI Listener</string>
+    <string name="waiting_for_message">Waiting for message…</string>
 </resources>

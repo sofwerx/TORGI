@@ -16,7 +16,6 @@ import android.location.GnssStatus;
 import android.location.Location;
 import android.location.LocationListener;
 import android.location.LocationManager;
-import android.net.Uri;
 import android.os.Binder;
 import android.os.Build;
 import android.os.Bundle;
@@ -39,6 +38,7 @@ import org.sofwerx.torgi.listener.GnssMeasurementListener;
 import org.sofwerx.torgi.R;
 import org.sofwerx.torgi.listener.SensorListener;
 import org.sofwerx.torgi.ogc.AbstractSOSBroadcastTransceiver;
+import org.sofwerx.torgi.ogc.SOSHelper;
 import org.sofwerx.torgi.ogc.TorgiSOSBroadcastTransceiver;
 import org.sofwerx.torgi.ui.Heatmap;
 
@@ -65,6 +65,7 @@ public class TorgiService extends Service {
     private ArrayList<LatLng> history = null;
     public final static int MAX_HISTORY_LENGTH = 50;
     private TorgiSOSBroadcastTransceiver sosBroadcastTransceiver = null;
+    private DataPoint lastDp = null;
 
     public void setListener(GnssMeasurementListener listener) {
         this.listener = listener;
@@ -334,6 +335,7 @@ public class TorgiService extends Service {
 
     public void onEWDataProcessed(DataPoint dp) {
         if (dp != null) {
+            lastDp = dp;
             if (Config.getInstance(this).processEWOnboard()) {
                 EWIndicators indicators = EWIndicators.getEWIndicators(dp);
                 Heatmap.put(dp, indicators);
@@ -341,5 +343,27 @@ public class TorgiService extends Service {
                     listener.onEWDataProcessed(dp, indicators);
             }
         }
+    }
+
+    public void onSOSRequestReceived(String request) {
+        if (SOSHelper.REQUEST_GET_OBSERVATION.equals(request)) {
+            if (geoPackageRecorder != null) {
+                geoPackageRecorder.getGnssMeasurements(System.currentTimeMillis() - 1000l * 10l, System.currentTimeMillis(),new GeoPackageRetrievalListener() {
+                    @Override
+                    public void onGnssSatDataRetrieved(ArrayList<GeoPackageSatDataHelper> measurements) {
+                        Log.d(TAG, "onGnssSatDataRetrieved()");
+                        TorgiSOSBroadcastTransceiver.broadcast(TorgiService.this, SOSHelper.getObservation(measurements));
+                    }
+
+                    @Override
+                    public void onGnssGeoPtRetrieved(ArrayList<GeoPackageGPSPtHelper> measurements) {
+                        Log.d(TAG, "onGnssSatDataRetrieved()");
+                    }
+                });
+            }
+        } else if (SOSHelper.REQUEST_DESCRIBE_SENSOR.equalsIgnoreCase(request)) {
+            TorgiSOSBroadcastTransceiver.broadcast(this,SOSHelper.getDescribeSensor(this,currentLocation));
+        } else if (SOSHelper.REQUEST_GET_CAPABILITIES.equalsIgnoreCase(request))
+            TorgiSOSBroadcastTransceiver.broadcast(this,SOSHelper.getCapabilities());
     }
 }

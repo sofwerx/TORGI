@@ -17,6 +17,7 @@ public class XmlHelper {
         this.root = root;
     }
 
+    @Override
     public String toString() {
         if ((root != null) && (xmlS != null)) {
             try {

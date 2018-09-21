@@ -367,6 +367,7 @@ public class MainActivity extends AbstractTORGIActivity implements GnssMeasureme
                 dialog.show();
             }
         }
+        overlayHeatmap.initOverlay();
     }
 
     @Override

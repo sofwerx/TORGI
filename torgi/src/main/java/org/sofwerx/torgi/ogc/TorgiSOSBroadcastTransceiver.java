@@ -65,36 +65,25 @@ public class TorgiSOSBroadcastTransceiver extends AbstractSOSBroadcastTransceive
     }
 
     private void processParsing(XmlPullParser parser) throws IOException, XmlPullParserException{
-        //TODO start parsing the choices
-        /*ArrayList<Player> players = new ArrayList<>();
         int eventType = parser.getEventType();
-        Player currentPlayer = null;
 
         while (eventType != XmlPullParser.END_DOCUMENT) {
-            String eltName = null;
+            String eltName;
 
             switch (eventType) {
                 case XmlPullParser.START_TAG:
                     eltName = parser.getName();
 
-                    if ("player".equals(eltName)) {
-                        currentPlayer = new Player();
-                        players.add(currentPlayer);
-                    } else if (currentPlayer != null) {
-                        if ("name".equals(eltName)) {
-                            currentPlayer.name = parser.nextText();
-                        } else if ("age".equals(eltName)) {
-                            currentPlayer.age = parser.nextText();
-                        } else if ("position".equals(eltName)) {
-                            currentPlayer.position = parser.nextText();
-                        }
+                    if (SOSHelper.REQUEST_GET_OBSERVATION.equals(eltName)) {
+                        torgiService.onSOSRequestReceived(eltName);
+                    } else if (SOSHelper.REQUEST_DESCRIBE_SENSOR.equalsIgnoreCase(eltName)) {
+                        torgiService.onSOSRequestReceived(eltName);
+                    } else if (SOSHelper.REQUEST_GET_CAPABILITIES.equalsIgnoreCase(eltName)) {
+                        torgiService.onSOSRequestReceived(eltName);
                     }
                     break;
             }
-
             eventType = parser.next();
         }
-
-        printPlayers(players);*/
     }
 }

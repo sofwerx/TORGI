@@ -7,6 +7,7 @@ import android.app.NotificationManager;
 import android.app.PendingIntent;
 import android.app.Service;
 import android.content.Intent;
+import android.content.IntentFilter;
 import android.content.SharedPreferences;
 import android.content.pm.PackageManager;
 import android.hardware.SensorEvent;
@@ -37,6 +38,8 @@ import org.sofwerx.torgi.listener.GeoPackageRetrievalListener;
 import org.sofwerx.torgi.listener.GnssMeasurementListener;
 import org.sofwerx.torgi.R;
 import org.sofwerx.torgi.listener.SensorListener;
+import org.sofwerx.torgi.ogc.AbstractSOSBroadcastTransceiver;
+import org.sofwerx.torgi.ogc.TorgiSOSBroadcastTransceiver;
 import org.sofwerx.torgi.ui.Heatmap;
 
 import java.io.File;
@@ -61,6 +64,7 @@ public class TorgiService extends Service {
     private Location currentLocation = null;
     private ArrayList<LatLng> history = null;
     public final static int MAX_HISTORY_LENGTH = 50;
+    private TorgiSOSBroadcastTransceiver sosBroadcastTransceiver = null;
 
     public void setListener(GnssMeasurementListener listener) {
         this.listener = listener;
@@ -219,10 +223,21 @@ public class TorgiService extends Service {
     public void onCreate() {
         super.onCreate();
         createNotificationChannel();
+        sosBroadcastTransceiver = new TorgiSOSBroadcastTransceiver(this);
+        IntentFilter intentFilter = new IntentFilter(AbstractSOSBroadcastTransceiver.ACTION_SOS);
+        registerReceiver(sosBroadcastTransceiver, intentFilter);
     }
 
     @Override
     public void onDestroy() {
+        if (sosBroadcastTransceiver != null) {
+            try {
+                unregisterReceiver(sosBroadcastTransceiver);
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
+            sosBroadcastTransceiver = null;
+        }
         if (locMgr != null) {
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
                 locMgr.unregisterGnssMeasurementsCallback(measurementListener);
@@ -319,7 +334,7 @@ public class TorgiService extends Service {
 
     public void onEWDataProcessed(DataPoint dp) {
         if (dp != null) {
-            if (Config.getInstance(this).processEWOnboard() || (listener != null)) {
+            if (Config.getInstance(this).processEWOnboard()) {
                 EWIndicators indicators = EWIndicators.getEWIndicators(dp);
                 Heatmap.put(dp, indicators);
                 if (listener != null)

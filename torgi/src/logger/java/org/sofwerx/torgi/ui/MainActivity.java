@@ -82,4 +82,9 @@ public class MainActivity extends AbstractTORGIActivity {
     protected int getLayout() {
         return R.layout.activity_logger;
     }
+
+    @Override
+    public void onHeatmapChange(Heatmap heatmap) {
+        //ignore
+    }
 }

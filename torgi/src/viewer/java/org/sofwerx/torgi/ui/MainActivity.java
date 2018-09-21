@@ -42,6 +42,7 @@ import org.sofwerx.torgi.gnss.GNSSEWValues;
 import org.sofwerx.torgi.gnss.LatLng;
 import org.sofwerx.torgi.gnss.SatMeasurement;
 import org.sofwerx.torgi.listener.GnssMeasurementListener;
+import org.sofwerx.torgi.ogc.SOSHelper;
 import org.sofwerx.torgi.service.TorgiService;
 import org.sofwerx.torgi.util.PackageUtil;
 
@@ -111,6 +112,7 @@ public class MainActivity extends AbstractTORGIActivity implements GnssMeasureme
                 Toast.makeText(this, "This will eventually toggle between viewing realtime and recorded.", Toast.LENGTH_SHORT).show();
 
                 //TODO temp for testing
+                Log.d(TAG, SOSHelper.getCapabilities());
                 //if (serviceBound)
                 //    torgiService.getHistory();
 

@@ -9,21 +9,35 @@ import java.io.File;
 
 public class Config {
     public final static String PREFS_SAVE_DIR = "savedir";
+    public final static String PREFS_PROCESS_EW = "processew";
 
     private static Config instance = null;
     private String savedDir = null;
+    private boolean processEWonboard = false;
     private SharedPreferences prefs = null;
     private Context context;
 
     private Config(Context context) {
         this.context = context;
         prefs = PreferenceManager.getDefaultSharedPreferences(context);
+        processEWonboard = prefs.getBoolean(PREFS_PROCESS_EW,false);
     }
 
     public static Config getInstance(Context context) {
         if (instance == null)
             instance = new Config(context);
         return instance;
+    }
+
+    public void setProcessEWonboard(boolean processEWonboard) {
+        this.processEWonboard = processEWonboard;
+        SharedPreferences.Editor edit = prefs.edit();
+        edit.putBoolean(PREFS_PROCESS_EW,processEWonboard);
+        edit.commit();
+    }
+
+    public boolean processEWOnboard() {
+        return processEWonboard;
     }
 
     public String getSavedDir() {

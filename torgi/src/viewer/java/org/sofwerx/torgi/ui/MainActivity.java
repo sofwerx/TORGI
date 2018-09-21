@@ -30,12 +30,10 @@ import com.github.mikephil.charting.data.Entry;
 import com.github.mikephil.charting.data.LineData;
 import com.github.mikephil.charting.data.LineDataSet;
 
-import org.osmdroid.tileprovider.constants.OpenStreetMapTileProviderConstants;
-import org.osmdroid.tileprovider.tilesource.TileSourceFactory;
 import org.osmdroid.util.GeoPoint;
-import org.osmdroid.views.overlay.Overlay;
-import org.osmdroid.views.overlay.TilesOverlay;
+import org.osmdroid.views.overlay.Polygon;
 import org.osmdroid.views.overlay.gestures.RotationGestureOverlay;
+import org.sofwerx.torgi.Config;
 import org.sofwerx.torgi.R;
 import org.sofwerx.torgi.gnss.Constellation;
 import org.sofwerx.torgi.gnss.DataPoint;
@@ -44,12 +42,13 @@ import org.sofwerx.torgi.gnss.GNSSEWValues;
 import org.sofwerx.torgi.gnss.LatLng;
 import org.sofwerx.torgi.gnss.SatMeasurement;
 import org.sofwerx.torgi.listener.GnssMeasurementListener;
+import org.sofwerx.torgi.ogc.SOSHelper;
+import org.sofwerx.torgi.service.TorgiService;
 import org.sofwerx.torgi.util.PackageUtil;
 
 import java.text.DecimalFormat;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
-import java.util.Iterator;
 
 public class MainActivity extends AbstractTORGIActivity implements GnssMeasurementListener {
     private final static long MAX_CHART_UPDATE_RATE = 500l;
@@ -58,13 +57,11 @@ public class MainActivity extends AbstractTORGIActivity implements GnssMeasureme
     private final static String PREF_LAT = "lat";
     private final static String PREF_LNG = "lng";
     private final static String PREF_DUAL_APP_ASK = "dual";
-    private final static int MAX_HISTORY_LENGTH = 50;
     private final static SimpleDateFormat fmtTime = new SimpleDateFormat("HH:mm:ss");
     private final static DecimalFormat fmtAccuracy = new DecimalFormat("#.##");
     private org.osmdroid.views.MapView osmMap = null;
     private org.osmdroid.views.overlay.Marker currentOSM = null;
     private org.osmdroid.views.overlay.Polyline historyPolylineOSM = null;
-    private ArrayList<LatLng> history = null;
     private LatLng current = null;
     private CombinedChart chartEW = null;
     private CombinedData chartEWData = null;
@@ -72,6 +69,7 @@ public class MainActivity extends AbstractTORGIActivity implements GnssMeasureme
     private CombinedData chartIAWData = null;
     private TextView textOverview,textConstellations,textLive;
     private GNSSStatusView ewWarningView;
+    private HeatmapOverlay overlayHeatmap = null;
 
     //Observed GNSS values
     private LineDataSet setCN0 = null;
@@ -84,14 +82,13 @@ public class MainActivity extends AbstractTORGIActivity implements GnssMeasureme
     private LineDataSet setFusedSpoof = null;
     private BarDataSet setFused = null;
 
-    private Location currentLoc = null;
-
     private boolean nagAboutDualInstalls = true;
 
     private boolean live = true;
 
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+        Config.getInstance(this).setProcessEWonboard(true);
         Toolbar toolbar = findViewById(R.id.mainToolbar);
         setActionBar(toolbar);
         textOverview = findViewById(R.id.monitorTextOverview);
@@ -99,6 +96,8 @@ public class MainActivity extends AbstractTORGIActivity implements GnssMeasureme
         textLive = findViewById(R.id.mainLiveIndicator);
         textLive.setOnClickListener(v -> updateLive(!live));
         ewWarningView = findViewById(R.id.mainEWStatusView);
+        ((CombinedChart)findViewById(R.id.chartIAW)).setNoDataText(getString(R.string.waiting_baseline));
+
         osmMapSetup();
     }
 
@@ -113,7 +112,7 @@ public class MainActivity extends AbstractTORGIActivity implements GnssMeasureme
                 Toast.makeText(this, "This will eventually toggle between viewing realtime and recorded.", Toast.LENGTH_SHORT).show();
 
                 //TODO temp for testing
-                //new Heatmap(this,osmMap);
+                Log.d(TAG, SOSHelper.getCapabilities());
                 //if (serviceBound)
                 //    torgiService.getHistory();
 
@@ -144,8 +143,6 @@ public class MainActivity extends AbstractTORGIActivity implements GnssMeasureme
             chartEW.setDrawBarShadow(false);
             chartEW.setHighlightFullBarEnabled(false);
             chartEW.setPinchZoom(false);
-            // draw bars behind lines
-            //chartEW.setDrawOrder(new CombinedChart.DrawOrder[]{CombinedChart.DrawOrder.BAR, CombinedChart.DrawOrder.BUBBLE, CombinedChart.DrawOrder.CANDLE, CombinedChart.DrawOrder.LINE, CombinedChart.DrawOrder.SCATTER});
             chartEW.setDrawOrder(new CombinedChart.DrawOrder[]{CombinedChart.DrawOrder.BAR, CombinedChart.DrawOrder.LINE});
 
             Legend l = chartEW.getLegend();
@@ -173,19 +170,13 @@ public class MainActivity extends AbstractTORGIActivity implements GnssMeasureme
 
             XAxis xAxis = chartEW.getXAxis();
             xAxis.setPosition(XAxis.XAxisPosition.BOTH_SIDED);
-            //xAxis.setAxisMinimum(0f);
-            //xAxis.setGranularity(1f);
 
             chartEWData = new CombinedData();
 
             chartEWData.setData(generateEWLineData(entriesCNO));
             chartEWData.setData(generateEWBarData(entriesAGC));
-            //data.setValueTypeface(mTfLight);
-
-            //xAxis.setAxisMaximum(data.getXMax() + 0.25f);
 
             chartEW.setData(chartEWData);
-            //chartEW.invalidate();
         }
     }
 
@@ -239,7 +230,6 @@ public class MainActivity extends AbstractTORGIActivity implements GnssMeasureme
             chartIAW.setDrawBarShadow(false);
             chartIAW.setHighlightFullBarEnabled(false);
             chartIAW.setPinchZoom(false);
-            chartIAW.setNoDataText("Waiting for baseline to settle...");
             chartIAW.setDrawOrder(new CombinedChart.DrawOrder[]{CombinedChart.DrawOrder.LINE,CombinedChart.DrawOrder.BAR});
 
             Legend l = chartIAW.getLegend();
@@ -339,6 +329,7 @@ public class MainActivity extends AbstractTORGIActivity implements GnssMeasureme
         osmMap.setBuiltInZoomControls(false);
         osmMap.setMultiTouchControls(true); //needed for pinch zooms
         osmMap.setTilesScaledToDpi(true); //scales tiles to the current screen's DPI, helps with readability of labels
+        overlayHeatmap = new HeatmapOverlay(osmMap);
         //osmMap.setTileSource(TileSourceFactory.USGS_SAT);
     }
 
@@ -367,7 +358,7 @@ public class MainActivity extends AbstractTORGIActivity implements GnssMeasureme
                     Uri packageUri = Uri.parse("package:" + PackageUtil.PACKAGE_LOGGER);
                     try {
                         startActivity(new Intent(Intent.ACTION_UNINSTALL_PACKAGE, packageUri));
-                    } catch (ActivityNotFoundException e) {
+                    } catch (ActivityNotFoundException ignore) {
                     }
                 });
                 builder.setOnDismissListener(dialog -> setDontAskAboutDualApps());
@@ -386,13 +377,8 @@ public class MainActivity extends AbstractTORGIActivity implements GnssMeasureme
 
     private void drawMarker(LatLng pos, String info) {
         if (pos != null) {
-            if (history == null)
-                history = new ArrayList<>();
-            history.add(pos);
-            if (history.size() > 1) {
-                if (history.size() > MAX_HISTORY_LENGTH)
-                    history.remove(0);
-
+            ArrayList<LatLng> history = torgiService.getLocationHistory();
+            if ((history != null) && (history.size() > 1)) {
                 if (historyPolylineOSM == null) {
                     historyPolylineOSM = new org.osmdroid.views.overlay.Polyline();
                     ArrayList<GeoPoint> list = new ArrayList<>();
@@ -404,7 +390,7 @@ public class MainActivity extends AbstractTORGIActivity implements GnssMeasureme
                     osmMap.getOverlays().add(historyPolylineOSM);
                 } else {
                     historyPolylineOSM.addPoint(new GeoPoint(pos.latitude, pos.longitude));
-                    if (historyPolylineOSM.getPoints().size() > MAX_HISTORY_LENGTH)
+                    if (historyPolylineOSM.getPoints().size() > TorgiService.MAX_HISTORY_LENGTH)
                         historyPolylineOSM.getPoints().remove(0);
                 }
             }
@@ -465,7 +451,7 @@ public class MainActivity extends AbstractTORGIActivity implements GnssMeasureme
     }
 
     @Override
-    public void onEWDataProcessed(DataPoint dp) {
+    public void onEWDataProcessed(DataPoint dp,EWIndicators indicators) {
         if ((dp != null) && (System.currentTimeMillis() > lastChartUpdate + MAX_CHART_UPDATE_RATE)) {
             lastChartUpdate = System.currentTimeMillis();
             int constellations = 0;
@@ -494,7 +480,6 @@ public class MainActivity extends AbstractTORGIActivity implements GnssMeasureme
             GNSSEWValues avg = dp.getAverageMeasurements();
             if (avg != null)
                 addEWChartEntry(dp.getSpaceTime().getTime(), avg);
-            EWIndicators indicators = EWIndicators.getEWIndicators(dp);
             if (indicators != null) {
                 addIAWChartEntry(dp.getSpaceTime().getTime(), indicators);
                 final int risk = (int)(100f*indicators.getFusedEWRisk());
@@ -520,7 +505,7 @@ public class MainActivity extends AbstractTORGIActivity implements GnssMeasureme
                     entryAGC = new BarEntry(chartIndex, (float) values.getAgc());
                     if (setAGC != null) {
                         setAGC.addEntry(entryAGC);
-                        if (setAGC.getValues().size() > MAX_HISTORY_LENGTH)
+                        if (setAGC.getValues().size() > TorgiService.MAX_HISTORY_LENGTH)
                             setAGC.removeFirst();
                         setAGC.notifyDataSetChanged();
                     }
@@ -530,7 +515,7 @@ public class MainActivity extends AbstractTORGIActivity implements GnssMeasureme
                     entryCN0 = new Entry(chartIndex,values.getCn0());
                     if (setCN0 != null) {
                         setCN0.addEntry(entryCN0);
-                        if (setCN0.getValues().size() > MAX_HISTORY_LENGTH)
+                        if (setCN0.getValues().size() > TorgiService.MAX_HISTORY_LENGTH)
                             setCN0.removeFirst();
                         setCN0.notifyDataSetChanged();
                     }
@@ -566,7 +551,7 @@ public class MainActivity extends AbstractTORGIActivity implements GnssMeasureme
                     entryFused = new BarEntry(chartIndex, indicators.getFusedEWRisk());
                     if (setFused != null) {
                         setFused.addEntry(entryFused);
-                        if (setFused.getValues().size() > MAX_HISTORY_LENGTH)
+                        if (setFused.getValues().size() > TorgiService.MAX_HISTORY_LENGTH)
                             setFused.removeFirst();
                         setFused.notifyDataSetChanged();
                     }
@@ -576,7 +561,7 @@ public class MainActivity extends AbstractTORGIActivity implements GnssMeasureme
                     entryRFI = new Entry(chartIndex,indicators.getLikelihoodRFI());
                     if (setRFI != null) {
                         setRFI.addEntry(entryRFI);
-                        if (setRFI.getValues().size() > MAX_HISTORY_LENGTH)
+                        if (setRFI.getValues().size() > TorgiService.MAX_HISTORY_LENGTH)
                             setRFI.removeFirst();
                         setRFI.notifyDataSetChanged();
                     }
@@ -586,7 +571,7 @@ public class MainActivity extends AbstractTORGIActivity implements GnssMeasureme
                     entryCN0AGC = new Entry(chartIndex,indicators.getLikelihoodRSpoofCN0vsAGC());
                     if (setCN0AGC != null) {
                         setCN0AGC.addEntry(entryCN0AGC);
-                        if (setCN0AGC.getValues().size() > MAX_HISTORY_LENGTH)
+                        if (setCN0AGC.getValues().size() > TorgiService.MAX_HISTORY_LENGTH)
                             setCN0AGC.removeFirst();
                         setCN0AGC.notifyDataSetChanged();
                     }
@@ -596,7 +581,7 @@ public class MainActivity extends AbstractTORGIActivity implements GnssMeasureme
                     entryConstellation = new Entry(chartIndex,indicators.getLikelihoodRSpoofConstellationDisparity());
                     if (setConstellation != null) {
                         setConstellation.addEntry(entryConstellation);
-                        if (setConstellation.getValues().size() > MAX_HISTORY_LENGTH)
+                        if (setConstellation.getValues().size() > TorgiService.MAX_HISTORY_LENGTH)
                             setConstellation.removeFirst();
                         setConstellation.notifyDataSetChanged();
                     }
@@ -606,7 +591,7 @@ public class MainActivity extends AbstractTORGIActivity implements GnssMeasureme
                     entryFusedSpoof = new Entry(chartIndex,indicators.getFusedLikelihoodOfSpoofing());
                     if (setFusedSpoof != null) {
                         setFusedSpoof.addEntry(entryFusedSpoof);
-                        if (setFusedSpoof.getValues().size() > MAX_HISTORY_LENGTH)
+                        if (setFusedSpoof.getValues().size() > TorgiService.MAX_HISTORY_LENGTH)
                             setFusedSpoof.removeFirst();
                         setFusedSpoof.notifyDataSetChanged();
                     }
@@ -627,10 +612,9 @@ public class MainActivity extends AbstractTORGIActivity implements GnssMeasureme
     @Override
     public void onLocationChanged(final Location loc) {
         runOnUiThread(() -> {
-            currentLoc = loc;
             drawMarker(new LatLng(loc.getLatitude(), loc.getLongitude()),fmtTime.format(loc.getTime())+", ±"+(loc.hasAccuracy()?fmtAccuracy.format(loc.getAccuracy()):"")+"m");
             int sats = loc.getExtras().getInt("satellites");
-            StringBuffer label = new StringBuffer();
+            StringBuilder label = new StringBuilder();
             if (sats > 0)
                 label.append(sats+" satellites");
             if (loc.hasAccuracy()) {
@@ -645,5 +629,22 @@ public class MainActivity extends AbstractTORGIActivity implements GnssMeasureme
     @Override
     public void onProviderChanged(final String provider, final boolean enabled) {
         //ignore
+    }
+
+    @Override
+    public void onHeatmapChange(final Heatmap heatmap) {
+        if (heatmap != null) {
+            if (heatmap.getPolygon() != null) {
+                runOnUiThread(() -> {
+                    heatmap.getPolygon().setFillColor(HeatmapOverlay.getFillColor(heatmap.getRfiRisk()));
+                    osmMap.invalidate();
+                });
+            } else {
+                runOnUiThread(() -> {
+                    overlayHeatmap.createPolygon(heatmap);
+                    osmMap.invalidate();
+                });
+            }
+        }
     }
 }

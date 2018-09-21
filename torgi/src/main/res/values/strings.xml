@@ -14,9 +14,10 @@
     <string name="normal_data">Normal Data</string>
     <string name="big_data_battery">Collecting Big Data gets more information, but will use battery a bit faster and takes up more file space.</string>
     <string name="data_saved_location">Data saved in </string>
+    <string name="waiting_baseline">Establishing GNSS baseline…</string>
 
-    //<string name="torgi_ready_share">TORGI collected new data</string>
-    //<string name="torgi_ready_share_narrative">TORGI has new data to send back</string>
+    <!--<string name="torgi_ready_share">TORGI collected new data</string>
+    <string name="torgi_ready_share_narrative">TORGI has new data to send back</string>-->
     <string name="share">Share</string>
 
     <!--Preferences-->

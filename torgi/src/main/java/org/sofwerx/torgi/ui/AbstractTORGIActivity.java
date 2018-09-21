@@ -27,6 +27,7 @@ import android.view.MenuInflater;
 import android.view.MenuItem;
 import android.widget.Toast;
 
+import org.sofwerx.torgi.Config;
 import org.sofwerx.torgi.R;
 import org.sofwerx.torgi.gnss.LatLng;
 import org.sofwerx.torgi.listener.GnssMeasurementListener;
@@ -34,7 +35,7 @@ import org.sofwerx.torgi.service.TorgiService;
 
 import java.util.ArrayList;
 
-public abstract class AbstractTORGIActivity extends Activity {
+public abstract class AbstractTORGIActivity extends Activity implements Heatmap.HeatmapChangeListener {
     protected static final int REQUEST_DISABLE_BATTERY_OPTIMIZATION = 401;
     protected final static String TAG = "TORGI.monitor";
     private final static String PREF_BATTERY_OPT_IGNORE = "nvroptbat";
@@ -80,12 +81,15 @@ public abstract class AbstractTORGIActivity extends Activity {
             if (serviceBound && (torgiService != null))
                 torgiService.setListener((GnssMeasurementListener)this);
         }
+        if (Config.getInstance(this).processEWOnboard())
+            Heatmap.setListener(this);
     }
 
     @Override
     public void onPause() {
         if (torgiService != null)
             torgiService.setListener(null);
+        Heatmap.setListener(null);
         super.onPause();
     }
 

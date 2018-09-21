@@ -1,0 +1,55 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    tools:context=".MainActivity">
+
+    <ScrollView
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1">
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:background="@color/colorPrimary">
+
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="Response from TORGI (tap to copy):"
+                android:textColor="@android:color/white"/>
+
+            <TextView
+                android:id="@+id/messgage"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="Waiting for message"
+                android:layout_margin="4dp"
+                android:background="@android:color/white"/>
+
+        </LinearLayout>
+    </ScrollView>
+
+    <Button
+        android:id="@+id/sendDescribeSensor"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="tx:Describe Sensor"/>
+
+    <Button
+        android:id="@+id/sendGetCapabilities"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="tx:Get Capabilities"/>
+
+    <Button
+        android:id="@+id/sendGetObservations"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="tx:Get Observations"/>
+
+</LinearLayout>

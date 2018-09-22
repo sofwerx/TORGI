@@ -367,6 +367,10 @@ public class MainActivity extends AbstractTORGIActivity implements GnssMeasureme
                 dialog.show();
             }
         }
+        if (historyPolylineOSM != null) {
+            osmMap.getOverlays().remove(historyPolylineOSM);
+            historyPolylineOSM = null;
+        }
         overlayHeatmap.initOverlay();
     }
 

@@ -38,6 +38,7 @@ import org.sofwerx.torgi.listener.GnssMeasurementListener;
 import org.sofwerx.torgi.R;
 import org.sofwerx.torgi.listener.SensorListener;
 import org.sofwerx.torgi.ogc.AbstractSOSBroadcastTransceiver;
+import org.sofwerx.torgi.ogc.LiteWebServer;
 import org.sofwerx.torgi.ogc.SOSHelper;
 import org.sofwerx.torgi.ogc.TorgiSOSBroadcastTransceiver;
 import org.sofwerx.torgi.ui.Heatmap;
@@ -55,6 +56,7 @@ import static java.time.Instant.now;
 public class TorgiService extends Service {
     private final static String TAG = "TORGISvc";
     private final static int TORGI_NOTIFICATION_ID = 1;
+    private final static int TORGI_WEB_SERVER_NOTIFICATION_ID = 2;
     private final static String NOTIFICATION_CHANNEL = "torgi_report";
     public final static String ACTION_STOP = "STOP";
     public final static String PREFS_BIG_DATA = "bigdata";
@@ -65,7 +67,7 @@ public class TorgiService extends Service {
     private ArrayList<LatLng> history = null;
     public final static int MAX_HISTORY_LENGTH = 50;
     private TorgiSOSBroadcastTransceiver sosBroadcastTransceiver = null;
-    private DataPoint lastDp = null;
+    private LiteWebServer sosServer = null;
 
     public void setListener(GnssMeasurementListener listener) {
         this.listener = listener;
@@ -227,10 +229,15 @@ public class TorgiService extends Service {
         sosBroadcastTransceiver = new TorgiSOSBroadcastTransceiver(this);
         IntentFilter intentFilter = new IntentFilter(AbstractSOSBroadcastTransceiver.ACTION_SOS);
         registerReceiver(sosBroadcastTransceiver, intentFilter);
+        sosServer = new LiteWebServer(this); //TODO check some Config to see if we want this to start
     }
 
     @Override
     public void onDestroy() {
+        if (sosServer != null)
+            sosServer.stop();
+        NotificationManager notificationManager = getSystemService(NotificationManager.class);
+        notificationManager.cancel(TORGI_WEB_SERVER_NOTIFICATION_ID);
         if (sosBroadcastTransceiver != null) {
             try {
                 unregisterReceiver(sosBroadcastTransceiver);
@@ -253,7 +260,7 @@ public class TorgiService extends Service {
         String dbFile = null;
         if (geoPackageRecorder != null)
             dbFile = geoPackageRecorder.shutdown();
-        if (dbFile != null) {
+        if ((dbFile != null) && Config.getInstance(this).isAutoShareEnabled()) {
             File file = new File(dbFile);
             if (file.exists()) {
                 Intent intentShareFile = new Intent(Intent.ACTION_SEND);
@@ -321,6 +328,31 @@ public class TorgiService extends Service {
         startForeground(TORGI_NOTIFICATION_ID, builder.build());
     }
 
+    public void notifyOfWebServer(String host) {
+        PendingIntent pendingIntent = null;
+        try {
+            Intent notificationIntent = new Intent(this, Class.forName("org.sofwerx.torgi.ui.MainActivity"));
+            pendingIntent = PendingIntent.getActivity(this, 0, notificationIntent, 0);
+        } catch (ClassNotFoundException ignore) {
+        }
+
+        Notification.Builder builder;
+        builder = new Notification.Builder(this);
+        builder.setContentIntent(pendingIntent);
+        builder.setSmallIcon(R.drawable.ic_notification_torgi);
+        String torgiHost = "TORGI SOS at http://"+host;
+        builder.setContentTitle(torgiHost);
+        builder.setTicker(torgiHost);
+        builder.setContentText(torgiHost);
+        builder.setAutoCancel(true);
+
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O)
+            builder.setChannelId(NOTIFICATION_CHANNEL);
+
+        NotificationManager notificationManager = getSystemService(NotificationManager.class);
+        notificationManager.notify(TORGI_WEB_SERVER_NOTIFICATION_ID,builder.build());
+    }
+
     private void createNotificationChannel() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             CharSequence name = "TORGI";
@@ -335,7 +367,6 @@ public class TorgiService extends Service {
 
     public void onEWDataProcessed(DataPoint dp) {
         if (dp != null) {
-            lastDp = dp;
             if (Config.getInstance(this).processEWOnboard()) {
                 EWIndicators indicators = EWIndicators.getEWIndicators(dp);
                 Heatmap.put(dp, indicators);

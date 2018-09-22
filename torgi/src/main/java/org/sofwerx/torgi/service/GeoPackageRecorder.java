@@ -18,7 +18,6 @@ import android.widget.Toast;
 import org.sofwerx.torgi.Config;
 import org.sofwerx.torgi.R;
 import org.sofwerx.torgi.SatStatus;
-import org.sofwerx.torgi.gnss.DataPoint;
 import org.sofwerx.torgi.gnss.helper.GeoPackageGPSPtHelper;
 import org.sofwerx.torgi.gnss.helper.GeoPackageSatDataHelper;
 import org.sofwerx.torgi.listener.GeoPackageRetrievalListener;
@@ -50,7 +49,6 @@ import mil.nga.geopackage.extension.related.RelatedTablesExtension;
 import mil.nga.geopackage.extension.related.UserMappingDao;
 import mil.nga.geopackage.extension.related.UserMappingRow;
 import mil.nga.geopackage.extension.related.UserMappingTable;
-import mil.nga.geopackage.extension.related.UserRelatedTable;
 import mil.nga.geopackage.extension.related.simple.SimpleAttributesDao;
 import mil.nga.geopackage.extension.related.simple.SimpleAttributesRow;
 import mil.nga.geopackage.extension.related.simple.SimpleAttributesTable;
@@ -69,7 +67,6 @@ import mil.nga.geopackage.user.UserTable;
 import mil.nga.geopackage.user.custom.UserCustomColumn;
 import mil.nga.geopackage.user.custom.UserCustomDao;
 import mil.nga.geopackage.user.custom.UserCustomRow;
-import mil.nga.sf.Geometry;
 import mil.nga.sf.GeometryType;
 import mil.nga.sf.Point;
 import mil.nga.sf.proj.ProjectionConstants;
@@ -130,9 +127,9 @@ public class GeoPackageRecorder extends HandlerThread {
     private final static String GPS_OBS_PT_ALT = "Alt";
     private final static String GPS_OBS_PT_GPS_TIME = "GPSTime";
 
-    private final static SimpleDateFormat fmtFilenameFriendlyTime = new SimpleDateFormat("YYYYMMdd HHmmss");
+    private final static SimpleDateFormat fmtFilenameFriendlyTime = new SimpleDateFormat("YYYYMMdd HHmmss", Locale.US);
 
-    HashMap<Integer, String> SatType = new HashMap<Integer, String>() {
+    private HashMap<Integer, String> SatType = new HashMap<Integer, String>() {
         {
             put(0, "Unknown");
             put(1, "GPS");
@@ -145,7 +142,7 @@ public class GeoPackageRecorder extends HandlerThread {
         }
     };
 
-    public GeoPackageRecorder(Context context) {
+    protected GeoPackageRecorder(Context context) {
         super("GeoPkgRcdr");
         this.context = context;
     }
@@ -201,18 +198,18 @@ public class GeoPackageRecorder extends HandlerThread {
 
     private GeoPackage gpkg = null;
 
-    HashMap<String, org.sofwerx.torgi.SatStatus> SatStatus = new HashMap<>();
-    HashMap<String, GnssMeasurement> SatInfo = new HashMap<>();
-    HashMap<String, Long> SatRowsToMap = new HashMap<>();
+    private HashMap<String, org.sofwerx.torgi.SatStatus> SatStatus = new HashMap<>();
+    private HashMap<String, GnssMeasurement> SatInfo = new HashMap<>();
+    private HashMap<String, Long> SatRowsToMap = new HashMap<>();
 
-    GeoPackage GPSgpkg = null;
-    RelatedTablesExtension RTE = null;
-    ExtendedRelation SatExtRel = null;
-    ExtendedRelation ClkExtRel = null;
-    UserTable PtsTable = null;
-    UserTable SatTable = null;
-    UserTable ClkTable = null;
-    UserTable MotionTable = null;
+    private GeoPackage GPSgpkg = null;
+    private RelatedTablesExtension RTE = null;
+    private ExtendedRelation SatExtRel = null;
+    private ExtendedRelation ClkExtRel = null;
+    private UserTable PtsTable = null;
+    private UserTable SatTable = null;
+    private UserTable ClkTable = null;
+    private UserTable MotionTable = null;
 
     private void removeTempFiles() {
         try {
@@ -324,45 +321,59 @@ public class GeoPackageRecorder extends HandlerThread {
     }
 
     /**
+     * Retreives the GNSS Measurements between two times. This is a blocking method.
+     * @param startTime
+     * @param stopTime
+     * @return
+     */
+    public ArrayList<GeoPackageSatDataHelper> getGnssMeasurementsSatDataBlocking(long startTime, long stopTime) {
+        if (ready.get() && (handler != null)) {
+            final String MAX_ROWS = Integer.toString(Integer.MAX_VALUE);
+            final String[] range = {Long.toString(startTime), Long.toString(stopTime)};
+            ArrayList<GeoPackageSatDataHelper> measurements = new ArrayList<>();
+            SimpleAttributesDao gnssDao = RTE.getSimpleAttributesDao(satTblName);
+            UserCoreResult resultCursor = gnssDao.query(SAT_DATA_MEASSURED_TIME+" >= ? AND "+SAT_DATA_MEASSURED_TIME+" < ?",range,null,null,null, MAX_ROWS);
+            if (resultCursor != null) {
+                final int rowID = resultCursor.getColumnIndex(ID_COLUMN);
+                final int rowSVID = resultCursor.getColumnIndex(SAT_DATA_SVID);
+                final int rowAGC = resultCursor.getColumnIndex(SAT_DATA_AGC);
+                final int rowCN0 = resultCursor.getColumnIndex(SAT_DATA_CN0);
+                final int rowConstellation = resultCursor.getColumnIndex(SAT_DATA_CONSTELLATION);
+                final int rowMeassuredTime = resultCursor.getColumnIndex(SAT_DATA_MEASSURED_TIME);
+                try{
+                    //FIXME this is a simplified portion of the full table; additional fields may need to be added later
+                    UserCoreRow row;
+                    while(resultCursor.moveToNext()){
+                        row = resultCursor.getRow();
+                        GeoPackageSatDataHelper helper = new GeoPackageSatDataHelper();
+                        helper.setId(row.getValue(rowID));
+                        helper.setAgc(row.getValue(rowAGC));
+                        helper.setCn0(row.getValue(rowCN0));
+                        helper.setConstellation(row.getValue(rowConstellation));
+                        helper.setSvid(row.getValue(rowSVID));
+                        helper.setMeassuredTime(row.getValue(rowMeassuredTime));
+                        measurements.add(helper);
+                    }
+                } finally {
+                    resultCursor.close();
+                }
+            }
+            return measurements;
+        }
+        return null;
+    }
+
+    /**
      * Retrieves the GNSS Measurements between two times
      * @param startTime unix time
      * @param stopTime unix time
-     * @param listener
+     * @param listener listener
      */
     public void getGnssMeasurements(long startTime, long stopTime, final GeoPackageRetrievalListener listener) {
         if (ready.get() && (handler != null) && (listener != null)) {
-            final String MAX_ROWS = Integer.toString(Integer.MAX_VALUE);
-            final String[] range = {Long.toString(startTime),Long.toString(stopTime)};
             handler.post(() -> {
-                ArrayList<GeoPackageSatDataHelper> measurements = new ArrayList<>();
-                SimpleAttributesDao gnssDao = RTE.getSimpleAttributesDao(satTblName);
-                UserCoreResult resultCursor = gnssDao.query(SAT_DATA_MEASSURED_TIME+" >= ? AND "+SAT_DATA_MEASSURED_TIME+" < ?",range,null,null,null, MAX_ROWS);
-                if (resultCursor != null) {
-                    final int rowID = resultCursor.getColumnIndex(ID_COLUMN);
-                    final int rowSVID = resultCursor.getColumnIndex(SAT_DATA_SVID);
-                    final int rowAGC = resultCursor.getColumnIndex(SAT_DATA_AGC);
-                    final int rowCN0 = resultCursor.getColumnIndex(SAT_DATA_CN0);
-                    final int rowConstellation = resultCursor.getColumnIndex(SAT_DATA_CONSTELLATION);
-                    final int rowMeassuredTime = resultCursor.getColumnIndex(SAT_DATA_MEASSURED_TIME);
-                    try{
-                        //FIXME this is a simplified portion of the full table; additional fields may need to be added later
-                        UserCoreRow row;
-                        while(resultCursor.moveToNext()){
-                            row = resultCursor.getRow();
-                            GeoPackageSatDataHelper helper = new GeoPackageSatDataHelper();
-                            helper.setId(row.getValue(rowID));
-                            helper.setAgc(row.getValue(rowAGC));
-                            helper.setCn0(row.getValue(rowCN0));
-                            helper.setConstellation(row.getValue(rowConstellation));
-                            helper.setSvid(row.getValue(rowSVID));
-                            helper.setMeassuredTime(row.getValue(rowMeassuredTime));
-                            measurements.add(helper);
-                        }
-                    } finally {
-                        resultCursor.close();
-                    }
-                }
-                if (!measurements.isEmpty())
+                ArrayList<GeoPackageSatDataHelper> measurements = getGnssMeasurementsSatDataBlocking(startTime, stopTime);
+                if ((measurements != null) && !measurements.isEmpty())
                     listener.onGnssSatDataRetrieved(measurements);
             });
         }
@@ -381,18 +392,18 @@ public class GeoPackageRecorder extends HandlerThread {
 
                     clkrow.setValue("time_nanos", (double) clk.getTimeNanos());
                     if (clk.hasTimeUncertaintyNanos()) {
-                        clkrow.setValue("time_uncertainty_nanos", (double) clk.getTimeUncertaintyNanos());
+                        clkrow.setValue("time_uncertainty_nanos", clk.getTimeUncertaintyNanos());
                         clkrow.setValue("has_time_uncertainty_nanos", 1);
                     } else {
-                        clkrow.setValue("time_uncertainty_nanos", (double) 0.0);
+                        clkrow.setValue("time_uncertainty_nanos", 0d);
                         clkrow.setValue("has_time_uncertainty_nanos", 0);
                     }
 
                     if (clk.hasBiasNanos()) {
-                        clkrow.setValue("bias_nanos", (double) clk.getBiasNanos());
+                        clkrow.setValue("bias_nanos", clk.getBiasNanos());
                         clkrow.setValue("has_bias_nanos", 1);
                     } else {
-                        clkrow.setValue("bias_nanos", (double) 0.0);
+                        clkrow.setValue("bias_nanos", 0d);
                         clkrow.setValue("has_bias_nanos", 0);
                     }
                     if (clk.hasFullBiasNanos()) {
@@ -403,24 +414,24 @@ public class GeoPackageRecorder extends HandlerThread {
                         clkrow.setValue("has_full_bias_nanos", 0);
                     }
                     if (clk.hasBiasUncertaintyNanos()) {
-                        clkrow.setValue("bias_uncertainty_nanos", (double) clk.getBiasUncertaintyNanos());
+                        clkrow.setValue("bias_uncertainty_nanos", clk.getBiasUncertaintyNanos());
                         clkrow.setValue("has_bias_uncertainty_nanos", 1);
                     } else {
-                        clkrow.setValue("bias_uncertainty_nanos", (double) 0.0);
+                        clkrow.setValue("bias_uncertainty_nanos", 0d);
                         clkrow.setValue("has_bias_uncertainty_nanos", 0);
                     }
                     if (clk.hasDriftNanosPerSecond()) {
-                        clkrow.setValue("drift_nanos_per_sec", (double) clk.getDriftNanosPerSecond());
+                        clkrow.setValue("drift_nanos_per_sec", clk.getDriftNanosPerSecond());
                         clkrow.setValue("has_drift_nanos_per_sec", 1);
                     } else {
-                        clkrow.setValue("drift_nanos_per_sec", (double) 0.0);
+                        clkrow.setValue("drift_nanos_per_sec", 0d);
                         clkrow.setValue("has_drift_nanos_per_sec", 0);
                     }
                     if (clk.hasDriftUncertaintyNanosPerSecond()) {
-                        clkrow.setValue("drift_uncertainty_nps", (double) clk.getDriftUncertaintyNanosPerSecond());
+                        clkrow.setValue("drift_uncertainty_nps", clk.getDriftUncertaintyNanosPerSecond());
                         clkrow.setValue("has_drift_uncertainty_nps", 1);
                     } else {
-                        clkrow.setValue("drift_uncertainty_nps", (double) 0.0);
+                        clkrow.setValue("drift_uncertainty_nps", 0d);
                         clkrow.setValue("has_drift_uncertainty_nps", 0);
                     }
                     if (clk.hasLeapSecond()) {
@@ -461,28 +472,28 @@ public class GeoPackageRecorder extends HandlerThread {
                                 satrow.setValue("has_agc", 0);
                             }
                         } else {
-                            satrow.setValue(SAT_DATA_AGC, (double) 0.0);
+                            satrow.setValue(SAT_DATA_AGC, 0d);
                             satrow.setValue("has_agc", 0);
                         }
                         satrow.setValue("sync_state_flags", g.getState());
                         satrow.setValue("sync_state_txt", " ");
                         satrow.setValue("sat_time_nanos", (double) g.getReceivedSvTimeNanos());
                         satrow.setValue("sat_time_1sigma_nanos", (double) g.getReceivedSvTimeUncertaintyNanos());
-                        satrow.setValue("rcvr_time_offset_nanos", (double) g.getTimeOffsetNanos());
+                        satrow.setValue("rcvr_time_offset_nanos", g.getTimeOffsetNanos());
                         satrow.setValue("multipath", g.getMultipathIndicator());
                         if (g.hasCarrierFrequencyHz()) {
                             satrow.setValue("carrier_freq_hz", (double) g.getCarrierFrequencyHz());
                             satrow.setValue("has_carrier_freq", 1);
                         } else {
-                            satrow.setValue("carrier_freq_hz", (double) 0.0);
+                            satrow.setValue("carrier_freq_hz", 0d);
                             satrow.setValue("has_carrier_freq", 0);
                         }
-                        satrow.setValue("accum_delta_range", (double) g.getAccumulatedDeltaRangeMeters());
-                        satrow.setValue("accum_delta_range_1sigma", (double) g.getAccumulatedDeltaRangeUncertaintyMeters());
+                        satrow.setValue("accum_delta_range", g.getAccumulatedDeltaRangeMeters());
+                        satrow.setValue("accum_delta_range_1sigma", g.getAccumulatedDeltaRangeUncertaintyMeters());
                         satrow.setValue("accum_delta_range_state_flags", g.getAccumulatedDeltaRangeState());
                         satrow.setValue("accum_delta_range_state_txt", " ");
-                        satrow.setValue("pseudorange_rate_mps", (double) g.getPseudorangeRateMetersPerSecond());
-                        satrow.setValue("pseudorange_rate_1sigma", (double) g.getPseudorangeRateUncertaintyMetersPerSecond());
+                        satrow.setValue("pseudorange_rate_mps", g.getPseudorangeRateMetersPerSecond());
+                        satrow.setValue("pseudorange_rate_1sigma", g.getPseudorangeRateUncertaintyMetersPerSecond());
 
                         if (SatStatus.containsKey(hashkey)) {
                             satrow.setValue("in_fix", SatStatus.get(hashkey).in_fix ? 0 : 1);
@@ -687,9 +698,9 @@ public class GeoPackageRecorder extends HandlerThread {
 
                         frow.setGeometry(geomData);
 
-                        frow.setValue(GPS_OBS_PT_LAT, (double) loc.getLatitude());
-                        frow.setValue(GPS_OBS_PT_LNG, (double) loc.getLongitude());
-                        frow.setValue(GPS_OBS_PT_ALT, (double) loc.getAltitude());
+                        frow.setValue(GPS_OBS_PT_LAT, loc.getLatitude());
+                        frow.setValue(GPS_OBS_PT_LNG, loc.getLongitude());
+                        frow.setValue(GPS_OBS_PT_ALT, loc.getAltitude());
                         frow.setValue("Provider", loc.getProvider());
                         frow.setValue(GPS_OBS_PT_GPS_TIME, loc.getTime());
                         frow.setValue("FixSatCount", loc.getExtras().getInt("satellites"));
@@ -697,7 +708,7 @@ public class GeoPackageRecorder extends HandlerThread {
                             frow.setValue("RadialAccuracy", (double) loc.getAccuracy());
                             frow.setValue("HasRadialAccuracy", 1);
                         } else {
-                            frow.setValue("RadialAccuracy", (double) 0.0);
+                            frow.setValue("RadialAccuracy", 0d);
                             frow.setValue("HasRadialAccuracy", 0);
                         }
 
@@ -705,7 +716,7 @@ public class GeoPackageRecorder extends HandlerThread {
                             frow.setValue("Speed", (double) loc.getAccuracy());
                             frow.setValue("HasSpeed", 1);
                         } else {
-                            frow.setValue("Speed", (double) 0.0);
+                            frow.setValue("Speed", 0d);
                             frow.setValue("HasSpeed", 0);
                         }
 
@@ -713,7 +724,7 @@ public class GeoPackageRecorder extends HandlerThread {
                             frow.setValue("Bearing", (double) loc.getAccuracy());
                             frow.setValue("HasBearing", 1);
                         } else {
-                            frow.setValue("Bearing", (double) 0.0);
+                            frow.setValue("Bearing", 0d);
                             frow.setValue("HasBearing", 0);
                         }
 
@@ -724,7 +735,7 @@ public class GeoPackageRecorder extends HandlerThread {
                                 frow.setValue("VerticalAccuracy", (double) loc.getVerticalAccuracyMeters());
                                 frow.setValue("HasVerticalAccuracy", 1);
                             } else {
-                                frow.setValue("VerticalAccuracy", (double) 0.0);
+                                frow.setValue("VerticalAccuracy", 0d);
                                 frow.setValue("HasVerticalAccuracy", 0);
                             }
 
@@ -732,7 +743,7 @@ public class GeoPackageRecorder extends HandlerThread {
                                 frow.setValue("SpeedAccuracy", (double) loc.getAccuracy());
                                 frow.setValue("HasSpeedAccuracy", 1);
                             } else {
-                                frow.setValue("SpeedAccuracy", (double) 0.0);
+                                frow.setValue("SpeedAccuracy", 0d);
                                 frow.setValue("HasSpeedAccuracy", 0);
                             }
 
@@ -740,7 +751,7 @@ public class GeoPackageRecorder extends HandlerThread {
                                 frow.setValue("BearingAccuracy", (double) loc.getAccuracy());
                                 frow.setValue("HasBearingAccuracy", 1);
                             } else {
-                                frow.setValue("BearingAccuracy", (double) 0.0);
+                                frow.setValue("BearingAccuracy", 0d);
                                 frow.setValue("HasBearingAccuracy", 0);
                             }
                         } else {
@@ -748,7 +759,7 @@ public class GeoPackageRecorder extends HandlerThread {
                             SimpleDateFormat df = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSSZ", Locale.US);
                             frow.setValue("SysTime", df.format(currentTime));
                             frow.setValue("HasVerticalAccuracy", 0);
-                            frow.setValue("VerticalAccuracy", (double) 0.0);
+                            frow.setValue("VerticalAccuracy", 0d);
                         }
 
                         frow.setValue("data_dump", loc.toString() + " " + loc.describeContents());

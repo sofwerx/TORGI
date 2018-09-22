@@ -13,6 +13,12 @@
             android:summary="@string/big_data_battery"
             android:defaultValue="true"/>
 
+        <CheckBoxPreference
+            android:key="autoshare"
+            android:title="@string/share_geopackage"
+            android:summary="@string/share_geopackage_narrative"
+            android:defaultValue="true"/>
+
         <Preference
             android:key="savedir"
             android:title="@string/pref_torgi_dir"

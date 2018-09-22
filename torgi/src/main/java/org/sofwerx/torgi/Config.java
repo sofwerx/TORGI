@@ -10,6 +10,7 @@ import java.util.UUID;
 
 public class Config {
     public final static String PREFS_SAVE_DIR = "savedir";
+    public final static String PREFS_AUTO_SHARE = "autoshare";
     public final static String PREFS_PROCESS_EW = "processew";
     public final static String PREFS_UUID = "callsign";
 
@@ -37,6 +38,10 @@ public class Config {
         SharedPreferences.Editor edit = prefs.edit();
         edit.putBoolean(PREFS_PROCESS_EW,processEWonboard);
         edit.commit();
+    }
+
+    public boolean isAutoShareEnabled() {
+        return prefs.getBoolean(PREFS_AUTO_SHARE,true);
     }
 
     public boolean processEWOnboard() {

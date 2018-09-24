@@ -283,37 +283,43 @@ public class GeoPackageRecorder extends HandlerThread {
         }
     }
 
+    public ArrayList<GeoPackageGPSPtHelper> getGPSObservationPointsBlocking(long startTime, long stopTime) {
+        final String MAX_ROWS = Integer.toString(Integer.MAX_VALUE);
+        final String[] range = {Long.toString(startTime),Long.toString(stopTime)};
+        ArrayList<GeoPackageGPSPtHelper> measurements = new ArrayList<>();
+        FeatureDao featDao = GPSgpkg.getFeatureDao(PtsTableName);
+        FeatureCursor resultCursor = featDao.query(GPS_OBS_PT_GPS_TIME+" >= ? AND "+GPS_OBS_PT_GPS_TIME+" < ?",range,null,null,null, MAX_ROWS);
+        if (resultCursor != null) {
+            final int rowID = resultCursor.getColumnIndex(ID_COLUMN);
+            final int rowLat = resultCursor.getColumnIndex(GPS_OBS_PT_LAT);
+            final int rowLng = resultCursor.getColumnIndex(GPS_OBS_PT_LNG);
+            final int rowAlt = resultCursor.getColumnIndex(GPS_OBS_PT_ALT);
+            final int rowTime = resultCursor.getColumnIndex(GPS_OBS_PT_GPS_TIME);
+            try{
+                //FIXME this is a simplified portion of the full table; additional fields may need to be added later
+                FeatureRow row;
+                while(resultCursor.moveToNext()){
+                    row = resultCursor.getRow();
+                    GeoPackageGPSPtHelper helper = new GeoPackageGPSPtHelper();
+                    helper.setId(row.getValue(rowID));
+                    helper.setLat(row.getValue(rowLat));
+                    helper.setLng(row.getValue(rowLng));
+                    helper.setAlt(row.getValue(rowAlt));
+                    helper.setTime(row.getValue(rowTime));
+                    measurements.add(helper);
+                }
+            } finally {
+                resultCursor.close();
+            }
+            return measurements;
+        }
+        return null;
+    }
+
     public void getGPSObservationPoints(long startTime, long stopTime, final GeoPackageRetrievalListener listener) {
         if (ready.get() && (handler != null) && (listener != null)) {
-            final String MAX_ROWS = Integer.toString(Integer.MAX_VALUE);
-            final String[] range = {Long.toString(startTime),Long.toString(stopTime)};
             handler.post(() -> {
-                ArrayList<GeoPackageGPSPtHelper> measurements = new ArrayList<>();
-                FeatureDao featDao = GPSgpkg.getFeatureDao(PtsTableName);
-                FeatureCursor resultCursor = featDao.query(GPS_OBS_PT_GPS_TIME+" >= ? AND "+GPS_OBS_PT_GPS_TIME+" < ?",range,null,null,null, MAX_ROWS);
-                if (resultCursor != null) {
-                    final int rowID = resultCursor.getColumnIndex(ID_COLUMN);
-                    final int rowLat = resultCursor.getColumnIndex(GPS_OBS_PT_LAT);
-                    final int rowLng = resultCursor.getColumnIndex(GPS_OBS_PT_LNG);
-                    final int rowAlt = resultCursor.getColumnIndex(GPS_OBS_PT_ALT);
-                    final int rowTime = resultCursor.getColumnIndex(GPS_OBS_PT_GPS_TIME);
-                    try{
-                        //FIXME this is a simplified portion of the full table; additional fields may need to be added later
-                        FeatureRow row;
-                        while(resultCursor.moveToNext()){
-                            row = resultCursor.getRow();
-                            GeoPackageGPSPtHelper helper = new GeoPackageGPSPtHelper();
-                            helper.setId(row.getValue(rowID));
-                            helper.setLat(row.getValue(rowLat));
-                            helper.setLng(row.getValue(rowLng));
-                            helper.setAlt(row.getValue(rowAlt));
-                            helper.setTime(row.getValue(rowTime));
-                            measurements.add(helper);
-                        }
-                    } finally {
-                        resultCursor.close();
-                    }
-                }
+                ArrayList<GeoPackageGPSPtHelper> measurements = getGPSObservationPointsBlocking(startTime,stopTime);
                 if (!measurements.isEmpty())
                     listener.onGnssGeoPtRetrieved(measurements);
             });

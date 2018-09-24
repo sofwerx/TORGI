@@ -5,6 +5,10 @@ import android.content.Context;
 import android.content.Intent;
 import android.util.Log;
 
+import org.json.JSONArray;
+import org.json.JSONException;
+import org.json.JSONObject;
+
 import java.io.StringWriter;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
@@ -77,11 +81,27 @@ public abstract class AbstractSOSBroadcastTransceiver extends BroadcastReceiver 
     }
 
     public final static String getOperationDescribeSensor() {
-        return "<?xml version=\"1.0\" encoding=\"UTF-8\"?><DescribeSensor version=\"1.0.0\" service=\"SOS\" mobileEnabled=\"true\" xmlns=\"http://www.opengis.net/sos/1.0\" xmlns:xsi=\"http://www.w3.org/2001/XMLSchema-instance\" xsi:schemaLocation=\"http://www.opengis.net/sos/1.0 http://schemas.opengis.net/sos/1.0.0/sosDescribeSensor.xsd\" outputFormat=\"text/xml;subtype=&quot;sensorML/1.0.1&quot;\"><procedure>urn:ogc:object:feature:Sensor:IFGI:ifgi-sensor-1</procedure></DescribeSensor>";
+        JSONObject obj = new JSONObject();
+        try {
+            obj.put("request","DescribeSensor");
+            obj.put("service","SOS");
+            obj.put("version","2.0.0");
+        } catch (JSONException e) {
+            e.printStackTrace();
+        }
+        return obj.toString();
     }
 
     public final static String getOperationGetCapabilities() {
-        return "<?xml version=\"1.0\" encoding=\"UTF-8\"?><GetCapabilities xmlns=\"http://www.opengis.net/sos/1.0\" xmlns:ows=\"http://www.opengis.net/ows/1.1\" xmlns:ogc=\"http://www.opengis.net/ogc\" xmlns:xsi=\"http://www.w3.org/2001/XMLSchema-instance\" xsi:schemaLocation=\"http://www.opengis.net/sos/1.0http://schemas.opengis.net/sos/1.0.0/sosGetCapabilities.xsd\" service=\"SOS\" updateSequence=\"\"><ows:AcceptVersions><ows:Version>1.0.0</ows:Version></ows:AcceptVersions><ows:Sections><ows:Section>OperationsMetadata</ows:Section><ows:Section>ServiceIdentification</ows:Section><ows:Section>Filter_Capabilities</ows:Section><ows:Section>Contents</ows:Section></ows:Sections></GetCapabilities>";
+        JSONObject obj = new JSONObject();
+        try {
+            obj.put("request","GetCapabilities");
+            obj.put("service","SOS");
+        } catch (JSONException e) {
+            e.printStackTrace();
+        }
+
+        return obj.toString();
     }
 
     public static long parseTime(String time) {
@@ -105,7 +125,7 @@ public abstract class AbstractSOSBroadcastTransceiver extends BroadcastReceiver 
      * @return
      */
     public static String getOperationGetObservations() {
-        return getOperationGetObservations(Long.MIN_VALUE, Long.MIN_VALUE);
+        return getOperationGetObservations(Long.MIN_VALUE, Long.MAX_VALUE);
     }
 
     /**
@@ -115,31 +135,26 @@ public abstract class AbstractSOSBroadcastTransceiver extends BroadcastReceiver 
      * @return
      */
     public static String getOperationGetObservations(long start, long end) {
-        StringWriter writer = new StringWriter();
-        writer.append("<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n" +
-                "<GetObservation xmlns=\"http://www.opengis.net/sos/1.0\" xmlns:ows=\"http://www.opengis.net/ows/1.1\" xmlns:gml=\"http://www.opengis.net/gml\" xmlns:ogc=\"http://www.opengis.net/ogc\" xmlns:om=\"http://www.opengis.net/om/1.0\" xmlns:xsi=\"http://www.w3.org/2001/XMLSchema-instance\" xsi:schemaLocation=\"http://www.opengis.net/sos/1.0\n" +
-                "http://schemas.opengis.net/sos/1.0.0/sosGetObservation.xsd\" service=\"SOS\" version=\"1.0.0\" srsName=\"urn:ogc:def:crs:EPSG:4326\">\n" +
-                "   <offering>TORGI</offering>\n"); //TODO change this type of offering
-        if (end > Long.MIN_VALUE) {
-            writer.append("   <eventTime>\n" +
-                    "      <ogc:TM_During>\n" +
-                    "         <ogc:PropertyName>urn:ogc:data:time:iso8601</ogc:PropertyName>\n" +
-                    "         <gml:TimePeriod>\n" +
-                    "            <gml:beginPosition>");
-            writer.append(formatTime(start));
-            writer.append("</gml:beginPosition>\n" +
-                    "            <gml:endPosition>");
-            writer.append(formatTime(end));
-            writer.append("</gml:endPosition>\n" +
-                    "         </gml:TimePeriod>\n" +
-                    "      </ogc:TM_During>\n" +
-                    "   </eventTime>\n");
+        JSONObject obj = new JSONObject();
+        try {
+            obj.put("request","GetObservation");
+            obj.put("service","SOS");
+            obj.put("version","2.0.0");
+            if ((start != Long.MIN_VALUE) && (end != Long.MAX_VALUE)) {
+                JSONObject temporalFilter = new JSONObject();
+                JSONObject during = new JSONObject();
+                during.put("ref","om:phenomenonTime");
+                JSONArray values = new JSONArray();
+                values.put(formatTime(start));
+                values.put(formatTime(end));
+                during.put("value",values);
+                temporalFilter.put("during",during);
+                obj.put("temporalFilter",temporalFilter);
+            }
+        } catch (JSONException e) {
+            e.printStackTrace();
         }
-        //TODO need to implement "   <procedure>urn:ogc:object:feature:Sensor:IFGI:ifgi-sensor-1</procedure>\n" +
-        //TODO need to implement "   <observedProperty>urn:ogc:def:phenomenon:OGC:1.0.30:waterlevel</observedProperty>\n" +
-        writer.append("   <responseFormat>text/xml;subtype=&quot;om/1.0.0&quot;</responseFormat>\n" +
-                "</GetObservation>");
 
-        return writer.toString();
+        return obj.toString();
     }
 }

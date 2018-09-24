@@ -41,6 +41,10 @@ import org.sofwerx.torgi.ogc.AbstractSOSBroadcastTransceiver;
 import org.sofwerx.torgi.ogc.LiteWebServer;
 import org.sofwerx.torgi.ogc.SOSHelper;
 import org.sofwerx.torgi.ogc.TorgiSOSBroadcastTransceiver;
+import org.sofwerx.torgi.ogc.sos.AbstractOperation;
+import org.sofwerx.torgi.ogc.sos.DescribeSensor;
+import org.sofwerx.torgi.ogc.sos.GetCapabilities;
+import org.sofwerx.torgi.ogc.sos.GetObservations;
 import org.sofwerx.torgi.ui.Heatmap;
 
 import java.io.File;
@@ -96,7 +100,7 @@ public class TorgiService extends Service {
                 gnssMeasurementService.start();
             }
             SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(getApplicationContext());
-            if (prefs.getBoolean(PREFS_BIG_DATA,true))
+            if (prefs.getBoolean(PREFS_BIG_DATA, true))
                 startSensorService();
             if (locMgr == null) {
                 locMgr = getSystemService(LocationManager.class);
@@ -115,7 +119,7 @@ public class TorgiService extends Service {
     public void startSensorService() {
         if (sensorService == null) {
             sensorService = new SensorService(this, sensorListener);
-            Log.d(TAG,"sensor service started");
+            Log.d(TAG, "sensor service started");
         }
     }
 
@@ -123,7 +127,7 @@ public class TorgiService extends Service {
         if (sensorService != null) {
             sensorService.shutdown();
             sensorService = null;
-            Log.d(TAG,"sensor service shutdown");
+            Log.d(TAG, "sensor service shutdown");
         }
     }
 
@@ -151,7 +155,7 @@ public class TorgiService extends Service {
             if (geoPackageRecorder != null)
                 geoPackageRecorder.onGnssMeasurementsReceived(event);
             if (gnssMeasurementService != null)
-                gnssMeasurementService.onGnssMeasurementsReceived(currentLocation,event);
+                gnssMeasurementService.onGnssMeasurementsReceived(currentLocation, event);
             //if (listener != null)
             //    listener.onGnssMeasurementReceived(event);
         }
@@ -182,21 +186,22 @@ public class TorgiService extends Service {
     private LocationListener locListener = new LocationListener() {
         public void onProviderEnabled(String provider) {
             if (listener != null)
-                listener.onProviderChanged(provider,true);
+                listener.onProviderChanged(provider, true);
         }
 
         public void onProviderDisabled(String provider) {
             if (listener != null)
-                listener.onProviderChanged(provider,false);
+                listener.onProviderChanged(provider, false);
         }
 
-        public void onStatusChanged(final String provider, int status, Bundle extras) {}
+        public void onStatusChanged(final String provider, int status, Bundle extras) {
+        }
 
         public void onLocationChanged(final Location loc) {
             currentLocation = loc;
             if (history == null)
                 history = new ArrayList<>();
-            history.add(new LatLng(loc.getLatitude(),loc.getLongitude()));
+            history.add(new LatLng(loc.getLatitude(), loc.getLongitude()));
             if (history.size() > 1) {
                 if (history.size() > MAX_HISTORY_LENGTH)
                     history.remove(0);
@@ -266,7 +271,7 @@ public class TorgiService extends Service {
                 Intent intentShareFile = new Intent(Intent.ACTION_SEND);
                 intentShareFile.setType("application/octet-stream");
                 intentShareFile.putExtra(Intent.EXTRA_STREAM,
-                        FileProvider.getUriForFile(this, this.getApplicationContext().getPackageName() + ".geopackage.provider",file));
+                        FileProvider.getUriForFile(this, this.getApplicationContext().getPackageName() + ".geopackage.provider", file));
                 intentShareFile.putExtra(Intent.EXTRA_SUBJECT, file.getName());
                 intentShareFile.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
                 startActivity(Intent.createChooser(intentShareFile, getString(R.string.share)));
@@ -282,7 +287,7 @@ public class TorgiService extends Service {
             if (intent != null) {
                 String action = intent.getAction();
                 if (ACTION_STOP.equalsIgnoreCase(action)) {
-                    Log.d(TAG,"Shutting down TorgiService");
+                    Log.d(TAG, "Shutting down TorgiService");
                     stopSelf();
                     return START_NOT_STICKY;
                 }
@@ -320,9 +325,9 @@ public class TorgiService extends Service {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O)
             builder.setChannelId(NOTIFICATION_CHANNEL);
 
-        Intent intentStop = new Intent(this,TorgiService.class);
+        Intent intentStop = new Intent(this, TorgiService.class);
         intentStop.setAction(ACTION_STOP);
-        PendingIntent pIntentShutdown = PendingIntent.getService(this,0,intentStop,PendingIntent.FLAG_UPDATE_CURRENT);
+        PendingIntent pIntentShutdown = PendingIntent.getService(this, 0, intentStop, PendingIntent.FLAG_UPDATE_CURRENT);
         builder.addAction(android.R.drawable.ic_lock_power_off, "Stop TORGI", pIntentShutdown);
 
         startForeground(TORGI_NOTIFICATION_ID, builder.build());
@@ -340,7 +345,7 @@ public class TorgiService extends Service {
         builder = new Notification.Builder(this);
         builder.setContentIntent(pendingIntent);
         builder.setSmallIcon(R.drawable.ic_notification_torgi);
-        String torgiHost = "TORGI SOS at http://"+host;
+        String torgiHost = "TORGI SOS at http://" + host;
         builder.setContentTitle(torgiHost);
         builder.setTicker(torgiHost);
         builder.setContentText(torgiHost);
@@ -350,7 +355,7 @@ public class TorgiService extends Service {
             builder.setChannelId(NOTIFICATION_CHANNEL);
 
         NotificationManager notificationManager = getSystemService(NotificationManager.class);
-        notificationManager.notify(TORGI_WEB_SERVER_NOTIFICATION_ID,builder.build());
+        notificationManager.notify(TORGI_WEB_SERVER_NOTIFICATION_ID, builder.build());
     }
 
     private void createNotificationChannel() {
@@ -376,25 +381,36 @@ public class TorgiService extends Service {
         }
     }
 
-    public void onSOSRequestReceived(String request) {
-        if (SOSHelper.REQUEST_GET_OBSERVATION.equals(request)) {
-            if (geoPackageRecorder != null) {
-                geoPackageRecorder.getGnssMeasurements(System.currentTimeMillis() - 1000l * 10l, System.currentTimeMillis(),new GeoPackageRetrievalListener() {
-                    @Override
-                    public void onGnssSatDataRetrieved(ArrayList<GeoPackageSatDataHelper> measurements) {
-                        Log.d(TAG, "onGnssSatDataRetrieved()");
-                        TorgiSOSBroadcastTransceiver.broadcast(TorgiService.this, SOSHelper.getObservation(measurements));
-                    }
+    public void onSOSRequestReceived(AbstractOperation operation) {
+        if (operation != null) {
+            if (operation instanceof GetObservations) {
+                GetObservations getObservations = (GetObservations) operation;
+                long start = getObservations.getStartTime();
+                long stop = getObservations.getStopTime();
+                if (geoPackageRecorder != null) {
+                    geoPackageRecorder.getGnssMeasurements(System.currentTimeMillis() - 1000l * 10l, System.currentTimeMillis(),new GeoPackageRetrievalListener() {
+                        @Override
+                        public void onGnssSatDataRetrieved(ArrayList<GeoPackageSatDataHelper> measurements) {
+                            Log.d(TAG, "onGnssSatDataRetrieved()");
+                            TorgiSOSBroadcastTransceiver.broadcast(TorgiService.this, SOSHelper.getObservationResult(measurements));
+                        }
 
-                    @Override
-                    public void onGnssGeoPtRetrieved(ArrayList<GeoPackageGPSPtHelper> measurements) {
-                        Log.d(TAG, "onGnssSatDataRetrieved()");
-                    }
-                });
+                        @Override
+                        public void onGnssGeoPtRetrieved(ArrayList<GeoPackageGPSPtHelper> measurements) {
+                            Log.d(TAG, "onGnssSatDataRetrieved()");
+                            TorgiSOSBroadcastTransceiver.broadcast(TorgiService.this, SOSHelper.getObservationResultGPSPts(measurements));
+                        }
+                    });
+                }
+            } else if (operation instanceof GetCapabilities) {
+                TorgiSOSBroadcastTransceiver.broadcast(this,SOSHelper.getCapabilities());
+            } else if (operation instanceof DescribeSensor) {
+                TorgiSOSBroadcastTransceiver.broadcast(this,SOSHelper.getDescribeSensor(this,currentLocation));
             }
-        } else if (SOSHelper.REQUEST_DESCRIBE_SENSOR.equalsIgnoreCase(request)) {
-            TorgiSOSBroadcastTransceiver.broadcast(this,SOSHelper.getDescribeSensor(this,currentLocation));
-        } else if (SOSHelper.REQUEST_GET_CAPABILITIES.equalsIgnoreCase(request))
-            TorgiSOSBroadcastTransceiver.broadcast(this,SOSHelper.getCapabilities());
+        }
+    }
+
+    public Location getCurrentLocation() {
+        return currentLocation;
     }
 }

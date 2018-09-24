@@ -3,7 +3,15 @@ package org.sofwerx.torgi.ogc;
 import android.content.Context;
 import android.util.Log;
 
+import org.json.JSONException;
+import org.json.JSONObject;
 import org.sofwerx.torgi.BuildConfig;
+import org.sofwerx.torgi.gnss.helper.GeoPackageSatDataHelper;
+import org.sofwerx.torgi.ogc.sos.AbstractOperation;
+import org.sofwerx.torgi.ogc.sos.DescribeSensor;
+import org.sofwerx.torgi.ogc.sos.GetCapabilities;
+import org.sofwerx.torgi.ogc.sos.GetObservations;
+import org.sofwerx.torgi.ogc.sos.UnsupportedOperationException;
 import org.sofwerx.torgi.service.TorgiService;
 import org.xmlpull.v1.XmlPullParser;
 import org.xmlpull.v1.XmlPullParserException;
@@ -13,6 +21,7 @@ import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
 
 public class TorgiSOSBroadcastTransceiver extends AbstractSOSBroadcastTransceiver {
     private final TorgiService torgiService;
@@ -36,6 +45,19 @@ public class TorgiSOSBroadcastTransceiver extends AbstractSOSBroadcastTransceive
     }
 
     private void parse(String input) {
+        if (input != null) {
+            try {
+                AbstractOperation operation = AbstractOperation.getOperation(new JSONObject(input));
+                torgiService.onSOSRequestReceived(operation);
+            } catch (JSONException e) {
+                e.printStackTrace();
+            } catch (UnsupportedOperationException e) {
+                e.printStackTrace();
+            }
+        }
+    }
+
+    /*private void parse(String input) {
         if (input != null) {
             InputStream stream = new ByteArrayInputStream(input.getBytes(StandardCharsets.UTF_8));
             parse(stream);
@@ -85,5 +107,5 @@ public class TorgiSOSBroadcastTransceiver extends AbstractSOSBroadcastTransceive
             }
             eventType = parser.next();
         }
-    }
+    }*/
 }

@@ -83,7 +83,7 @@ public class SOSHelperXML {
         return out.toString();
     }
 
-    /*public static String getObservation(ArrayList<GeoPackageSatDataHelper> dps) {
+    /*public static String getObservationResult(ArrayList<GeoPackageSatDataHelper> dps) {
         if ((dps == null) || dps.isEmpty())
             return null;
         ArrayList<XmlHelper.Tag> dataTags = new ArrayList<>();

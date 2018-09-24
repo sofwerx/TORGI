@@ -5,10 +5,17 @@ import android.util.Log;
 import org.apache.http.conn.util.InetAddressUtils;
 import org.json.JSONException;
 import org.json.JSONObject;
+import org.sofwerx.torgi.gnss.helper.GeoPackageGPSPtHelper;
 import org.sofwerx.torgi.gnss.helper.GeoPackageSatDataHelper;
+import org.sofwerx.torgi.ogc.sos.AbstractOperation;
+import org.sofwerx.torgi.ogc.sos.DescribeSensor;
+import org.sofwerx.torgi.ogc.sos.GetCapabilities;
+import org.sofwerx.torgi.ogc.sos.GetObservations;
+import org.sofwerx.torgi.ogc.sos.UnsupportedOperationException;
 import org.sofwerx.torgi.service.TorgiService;
 
 import java.io.IOException;
+import java.io.StringWriter;
 import java.net.InetAddress;
 import java.net.NetworkInterface;
 import java.util.ArrayList;
@@ -69,20 +76,32 @@ public class LiteWebServer {
                                     } catch (JSONException ignore) {}
                                 }
                             }
-                            if (obj != null) {
-                                String operation = obj.optString("request",null);
-                                if (operation != null) {
-                                    if ("GetObservation".equalsIgnoreCase(operation)) {
+                            try {
+                                AbstractOperation receivedOperation = AbstractOperation.getOperation(obj);
+                                if (receivedOperation != null) {
+                                    if (receivedOperation instanceof GetObservations) {
+                                        GetObservations getObservations = (GetObservations) receivedOperation;
+                                        long start = getObservations.getStartTime();
+                                        long stop = getObservations.getStopTime();
+                                        StringWriter out = new StringWriter();
                                         ArrayList<GeoPackageSatDataHelper> measurements =
-                                                torgiService.getGeoPackageRecorder().getGnssMeasurementsSatDataBlocking(System.currentTimeMillis()-1000l*10l,System.currentTimeMillis());
-                                        if (measurements == null)
-                                            return newFixedLengthResponse("{}"); //TODO send back a better empty description
-                                        else {
-                                            String out = SOSHelper.getObservation(measurements);
-                                            return newFixedLengthResponse(out);
-                                        }
+                                                torgiService.getGeoPackageRecorder().getGnssMeasurementsSatDataBlocking(start, stop);
+                                        out.append(SOSHelper.getObservationResult(measurements));
+                                        out.append('\n');
+                                        ArrayList<GeoPackageGPSPtHelper> gpsMeasurements =
+                                                torgiService.getGeoPackageRecorder().getGPSObservationPointsBlocking(start,stop);
+                                        out.append(SOSHelper.getObservationResultGPSPts(gpsMeasurements));
+                                        return newFixedLengthResponse(out.toString());
+                                    } else if (receivedOperation instanceof GetCapabilities) {
+                                        return newFixedLengthResponse(SOSHelper.getCapabilities());
+                                    } else if (receivedOperation instanceof DescribeSensor) {
+                                        return newFixedLengthResponse(SOSHelper.getDescribeSensor(torgiService,torgiService.getCurrentLocation()));
                                     }
                                 }
+                            } catch (UnsupportedOperationException e) {
+                                //TODO
+                                Log.e(TAG,e.getMessage());
+                                return newFixedLengthResponse(e.getMessage());
                             }
                         }
                     }

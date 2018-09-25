@@ -2,10 +2,21 @@
     <PreferenceCategory
         android:title="@string/pref_category_logging">
 
+        <EditTextPreference
+            android:key="callsign"
+            android:title="@string/device_callsign"
+            android:summary="@string/device_callsign_narrative" />
+
         <CheckBoxPreference
             android:key="bigdata"
             android:title="@string/big_data"
             android:summary="@string/big_data_battery"
+            android:defaultValue="true"/>
+
+        <CheckBoxPreference
+            android:key="autoshare"
+            android:title="@string/share_geopackage"
+            android:summary="@string/share_geopackage_narrative"
             android:defaultValue="true"/>
 
         <Preference

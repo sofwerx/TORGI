@@ -6,15 +6,19 @@ import android.os.Environment;
 import android.preference.PreferenceManager;
 
 import java.io.File;
+import java.util.UUID;
 
 public class Config {
     public final static String PREFS_SAVE_DIR = "savedir";
+    public final static String PREFS_AUTO_SHARE = "autoshare";
     public final static String PREFS_PROCESS_EW = "processew";
+    public final static String PREFS_UUID = "callsign";
 
     private static Config instance = null;
     private String savedDir = null;
     private boolean processEWonboard = false;
     private SharedPreferences prefs = null;
+    private String uuid = null;
     private Context context;
 
     private Config(Context context) {
@@ -36,8 +40,23 @@ public class Config {
         edit.commit();
     }
 
+    public boolean isAutoShareEnabled() {
+        return prefs.getBoolean(PREFS_AUTO_SHARE,true);
+    }
+
     public boolean processEWOnboard() {
         return processEWonboard;
+    }
+
+    public String getUuid() {
+        if (uuid == null) {
+            uuid = prefs.getString(PREFS_UUID,null);
+            if (uuid == null) {
+                uuid = UUID.randomUUID().toString();
+                prefs.edit().putString(PREFS_UUID,uuid).apply();
+            }
+        }
+        return uuid;
     }
 
     public String getSavedDir() {

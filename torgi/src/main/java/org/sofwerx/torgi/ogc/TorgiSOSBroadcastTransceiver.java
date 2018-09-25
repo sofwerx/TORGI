@@ -3,7 +3,15 @@ package org.sofwerx.torgi.ogc;
 import android.content.Context;
 import android.util.Log;
 
+import org.json.JSONException;
+import org.json.JSONObject;
 import org.sofwerx.torgi.BuildConfig;
+import org.sofwerx.torgi.gnss.helper.GeoPackageSatDataHelper;
+import org.sofwerx.torgi.ogc.sos.AbstractOperation;
+import org.sofwerx.torgi.ogc.sos.DescribeSensor;
+import org.sofwerx.torgi.ogc.sos.GetCapabilities;
+import org.sofwerx.torgi.ogc.sos.GetObservations;
+import org.sofwerx.torgi.ogc.sos.UnsupportedOperationException;
 import org.sofwerx.torgi.service.TorgiService;
 import org.xmlpull.v1.XmlPullParser;
 import org.xmlpull.v1.XmlPullParserException;
@@ -13,6 +21,7 @@ import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
 
 public class TorgiSOSBroadcastTransceiver extends AbstractSOSBroadcastTransceiver {
     private final TorgiService torgiService;
@@ -36,6 +45,19 @@ public class TorgiSOSBroadcastTransceiver extends AbstractSOSBroadcastTransceive
     }
 
     private void parse(String input) {
+        if (input != null) {
+            try {
+                AbstractOperation operation = AbstractOperation.getOperation(new JSONObject(input));
+                torgiService.onSOSRequestReceived(operation);
+            } catch (JSONException e) {
+                e.printStackTrace();
+            } catch (UnsupportedOperationException e) {
+                e.printStackTrace();
+            }
+        }
+    }
+
+    /*private void parse(String input) {
         if (input != null) {
             InputStream stream = new ByteArrayInputStream(input.getBytes(StandardCharsets.UTF_8));
             parse(stream);
@@ -65,36 +87,25 @@ public class TorgiSOSBroadcastTransceiver extends AbstractSOSBroadcastTransceive
     }
 
     private void processParsing(XmlPullParser parser) throws IOException, XmlPullParserException{
-        //TODO start parsing the choices
-        /*ArrayList<Player> players = new ArrayList<>();
         int eventType = parser.getEventType();
-        Player currentPlayer = null;
 
         while (eventType != XmlPullParser.END_DOCUMENT) {
-            String eltName = null;
+            String eltName;
 
             switch (eventType) {
                 case XmlPullParser.START_TAG:
                     eltName = parser.getName();
 
-                    if ("player".equals(eltName)) {
-                        currentPlayer = new Player();
-                        players.add(currentPlayer);
-                    } else if (currentPlayer != null) {
-                        if ("name".equals(eltName)) {
-                            currentPlayer.name = parser.nextText();
-                        } else if ("age".equals(eltName)) {
-                            currentPlayer.age = parser.nextText();
-                        } else if ("position".equals(eltName)) {
-                            currentPlayer.position = parser.nextText();
-                        }
+                    if (SOSHelper.REQUEST_GET_OBSERVATION.equals(eltName)) {
+                        torgiService.onSOSRequestReceived(eltName);
+                    } else if (SOSHelper.REQUEST_DESCRIBE_SENSOR.equalsIgnoreCase(eltName)) {
+                        torgiService.onSOSRequestReceived(eltName);
+                    } else if (SOSHelper.REQUEST_GET_CAPABILITIES.equalsIgnoreCase(eltName)) {
+                        torgiService.onSOSRequestReceived(eltName);
                     }
                     break;
             }
-
             eventType = parser.next();
         }
-
-        printPlayers(players);*/
-    }
+    }*/
 }

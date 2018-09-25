@@ -10,7 +10,7 @@ import java.util.ArrayList;
 
 public class Heatmap {
     private final static double METERS_PER_LATITUDE = 111130d; //approximation; this is just for heatmap display so its a rough estimate
-    private final static double BOX_SIDE_LENGTH = 20d; //meters
+    private final static double BOX_SIDE_LENGTH = 50d; //meters
     private final static double latSize = BOX_SIDE_LENGTH/METERS_PER_LATITUDE;
     private static double lngSize = Double.NaN;
     private static LatLng origin = null;
@@ -18,7 +18,7 @@ public class Heatmap {
     private BoundingBox box;
     private long timeOfInformation;
     private int rfiRisk = -1; //0 to 100
-    private final static int MAX_HEATMAP_LENGTH = 100;
+    private final static int MAX_HEATMAP_LENGTH = 500;
     private Polygon polygon = null;
     private static HeatmapChangeListener listener = null;
 

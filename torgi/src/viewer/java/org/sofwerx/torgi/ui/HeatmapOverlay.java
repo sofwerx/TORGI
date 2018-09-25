@@ -12,7 +12,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 public class HeatmapOverlay {
-    private FolderOverlay heatmapOverlay;
+    private FolderOverlay heatmapOverlay = null;
     private final MapView osmMap;
     private boolean rendering = false;
     private final static String[] GRADIENT = {
@@ -31,28 +31,36 @@ public class HeatmapOverlay {
 
     public HeatmapOverlay(MapView osmMap) {
         this.osmMap = osmMap;
-        heatmapOverlay = new FolderOverlay();
         initOverlay();
     }
 
-    private void initOverlay() {
+    public void initOverlay() {
         if (!rendering) {
             rendering = true;
 
-            ArrayList<Heatmap> heatmaps = Heatmap.getHeatmap();
-            if ((heatmaps != null) && !heatmaps.isEmpty()) {
-                for (Heatmap heatmap:heatmaps) {
-                    Polygon poly = createPolygon(heatmap);
-                    if (poly != null)
-                        heatmap.setPolygon(poly);
-                }
-            }
+            if (heatmapOverlay != null)
+                osmMap.getOverlayManager().remove(heatmapOverlay);
+            heatmapOverlay = new FolderOverlay();
 
-            osmMap.post(() -> {
-                osmMap.getOverlayManager().add(heatmapOverlay);
-                osmMap.invalidate();
-                rendering = false;
-            });
+            new Thread() {
+                @Override
+                public void run() {
+                    ArrayList<Heatmap> heatmaps = Heatmap.getHeatmap();
+                    if ((heatmaps != null) && !heatmaps.isEmpty()) {
+                        for (Heatmap heatmap:heatmaps) {
+                            Polygon poly = createPolygon(heatmap);
+                            if (poly != null)
+                                heatmap.setPolygon(poly);
+                        }
+                    }
+
+                    osmMap.post(() -> {
+                        osmMap.getOverlayManager().add(heatmapOverlay);
+                        osmMap.invalidate();
+                        rendering = false;
+                    });
+                }
+            }.start();
         }
     }
 

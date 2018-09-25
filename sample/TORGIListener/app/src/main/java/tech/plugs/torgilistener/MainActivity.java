@@ -29,13 +29,18 @@ public class MainActivity extends Activity implements SampleTransceiver.MessageR
         bDescribeSensor = findViewById(R.id.sendDescribeSensor);
         bGetCapabilities = findViewById(R.id.sendGetCapabilities);
         bGetObservations = findViewById(R.id.sendGetObservations);
-        bDescribeSensor.setOnClickListener(view -> AbstractSOSBroadcastTransceiver.broadcast(MainActivity.this,AbstractSOSBroadcastTransceiver.getOperationDescribeSensor()));
-        bGetCapabilities.setOnClickListener(view -> AbstractSOSBroadcastTransceiver.broadcast(MainActivity.this,AbstractSOSBroadcastTransceiver.getOperationGetCapabilities()));
-        bGetObservations.setOnClickListener(view -> AbstractSOSBroadcastTransceiver.broadcast(MainActivity.this,AbstractSOSBroadcastTransceiver.getOperationGetObservations()));
+        bDescribeSensor.setOnClickListener(view -> broadcast(AbstractSOSBroadcastTransceiver.getOperationDescribeSensor()));
+        bGetCapabilities.setOnClickListener(view -> broadcast(AbstractSOSBroadcastTransceiver.getOperationGetCapabilities()));
+        bGetObservations.setOnClickListener(view -> broadcast(AbstractSOSBroadcastTransceiver.getOperationGetObservations()));
         transceiver = new SampleTransceiver();
         IntentFilter intentFilter = new IntentFilter(AbstractSOSBroadcastTransceiver.ACTION_SOS);
         registerReceiver(transceiver, intentFilter);
 
+    }
+
+    private void broadcast(String value) {
+        response.setText(getString(R.string.waiting_for_message));
+        AbstractSOSBroadcastTransceiver.broadcast(MainActivity.this,value);
     }
 
     @Override

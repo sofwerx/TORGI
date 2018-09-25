@@ -27,7 +27,7 @@
                 android:id="@+id/messgage"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:text="Waiting for message"
+                android:text="@string/waiting_for_message"
                 android:layout_margin="4dp"
                 android:background="@android:color/white"/>
 

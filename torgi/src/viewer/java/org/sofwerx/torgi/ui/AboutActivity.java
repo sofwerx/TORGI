@@ -20,8 +20,6 @@ public class AboutActivity extends Activity {
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.about_activity);
-        //Toolbar toolbar = (Toolbar) findViewById(R.id.toolbar);
-        //setSupportActionBar(toolbar);
         ackTitle = findViewById(R.id.legalAckTitle);
         ack = findViewById(R.id.legalAck);
         licTitle = findViewById(R.id.legalLicenseTitle);

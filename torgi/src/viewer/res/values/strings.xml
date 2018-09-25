@@ -1,5 +1,5 @@
 <resources>
-    <string name="app_name">TORGI Viewer</string>
+    <string name="app_name">TORGI</string>
     <string name="torgi">TORGI</string>
     <string name="viewer">Viewer</string>
     <string name="measurement">Measurements:</string>

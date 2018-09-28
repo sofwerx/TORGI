@@ -55,22 +55,30 @@ public class LiteWebServer {
         }
 
         public Response serve(IHTTPSession session) {
-            final Map<String, String> map = new HashMap<String, String>();
+            final Map<String, String> map = new HashMap();
+            Map<String, List<String>> qparams = new HashMap();
             Method method = session.getMethod();
             Log.d(TAG,"Method: "+method.name());
             if (Method.PUT.equals(method) || Method.POST.equals(method)) {
                 try {
                     session.parseBody(map);
                     // get the POST body
-                    JSONObject obj = null;
-                    if (map.containsKey("postData")) {
-                        String data = map.get("postData");
-                        Log.d(TAG,"Data = "+data);
-                        if (data != null)
-                            obj = getJSONAnywhereInHere(data);
-                        else
-                            return newFixedLengthResponse("TORGI received a POST or PUT but wasn't able to handle this data; it just received: " +toString(session.getParms()));
+                    if (map.size() == 0) {
+                        qparams = session.getParameters();
                     }
+                    JSONObject obj = null;
+                    String data = null;
+                    if (map.containsKey("postData")) {
+                        data = map.get("postData");
+                    } else if (qparams.size() > 0) {
+                        data = qparams.keySet().toString();
+                    }
+
+                    Log.d(TAG,"Data = "+data);
+                    if (data != null)
+                        obj = getJSONAnywhereInHere(data);
+                    else
+                        return newFixedLengthResponse("TORGI received a POST or PUT but wasn't able to handle this data; it just received: " + session.getParameters().toString());
 
                     if (obj == null) //handle the case where the JSON isnt mapped to postData but is instead the first key in the map
                         obj = getJSONInMap(map);

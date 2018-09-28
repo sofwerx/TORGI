@@ -1,4 +1,5 @@
 <resources>
+    <string name="torgi_full_name">Tactical Observation of RF &amp; GNSS Interference</string>
     <string name="notification">TORGI is collecting data...</string>
     <string name="quit_run_in_background">Run in background</string>
     <string name="does_not_support_battery_optimization">This device does not support battery optimization.</string>

@@ -345,8 +345,8 @@ public class TorgiService extends Service {
         builder = new Notification.Builder(this);
         builder.setContentIntent(pendingIntent);
         builder.setSmallIcon(R.drawable.ic_notification_torgi);
-        String torgiHost = "TORGI SOS at http://" + host;
-        builder.setContentTitle(torgiHost);
+        String torgiHost = "TORGI is hosting SOS at http://" + host;
+        builder.setContentTitle("TORGI SOS");
         builder.setTicker(torgiHost);
         builder.setContentText(torgiHost);
         builder.setAutoCancel(true);

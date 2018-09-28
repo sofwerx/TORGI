@@ -9,6 +9,19 @@
     android:background="@color/colorPrimaryDark"
     android:padding="8dp">
 
+    <TextView
+        android:id="@+id/textTorgiFull"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="@string/torgi_full_name"
+        android:textAlignment="center"
+        android:textColor="@android:color/white"
+        android:textSize="16sp"
+        android:textStyle="bold"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toTopOf="parent" />
+
     <ImageView
         android:id="@+id/aboutLogo"
         android:layout_width="match_parent"
@@ -16,7 +29,7 @@
         android:src="@drawable/ic_notification_torgi"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toTopOf="parent" />
+        app:layout_constraintTop_toBottomOf="@id/textTorgiFull" />
 
     <ScrollView
         android:layout_width="match_parent"

@@ -62,47 +62,46 @@ public class LiteWebServer {
                 try {
                     session.parseBody(map);
                     // get the POST body
+                    JSONObject obj = null;
                     if (map.containsKey("postData")) {
                         String data = map.get("postData");
                         Log.d(TAG,"Data = "+data);
-                        if (data != null) {
-                            JSONObject obj = null;
-                            try {
-                                obj = new JSONObject(data);
-                            } catch (JSONException e) {
-                                if (data.indexOf('{') > -1) {
-                                    try {
-                                        obj = new JSONObject(data.substring(data.indexOf('{')));
-                                    } catch (JSONException ignore) {}
+                        if (data != null)
+                            obj = getJSONAnywhereInHere(data);
+                        else
+                            return newFixedLengthResponse("TORGI received a POST or PUT but wasn't able to handle this data; it just received: " +toString(session.getParms()));
+                    }
+
+                    if (obj == null) //handle the case where the JSON isnt mapped to postData but is instead the first key in the map
+                        obj = getJSONInMap(map);
+
+                    if (obj != null) {
+                        try {
+                            AbstractOperation receivedOperation = AbstractOperation.getOperation(obj);
+                            if (receivedOperation != null) {
+                                if (receivedOperation instanceof GetObservations) {
+                                    GetObservations getObservations = (GetObservations) receivedOperation;
+                                    long start = getObservations.getStartTime();
+                                    long stop = getObservations.getStopTime();
+                                    StringWriter out = new StringWriter();
+                                    ArrayList<GeoPackageSatDataHelper> measurements =
+                                            torgiService.getGeoPackageRecorder().getGnssMeasurementsSatDataBlocking(start, stop);
+                                    out.append(SOSHelper.getObservationResult(measurements));
+                                    out.append('\n');
+                                    ArrayList<GeoPackageGPSPtHelper> gpsMeasurements =
+                                            torgiService.getGeoPackageRecorder().getGPSObservationPointsBlocking(start, stop);
+                                    out.append(SOSHelper.getObservationResultGPSPts(gpsMeasurements));
+                                    return newFixedLengthResponse(out.toString());
+                                } else if (receivedOperation instanceof GetCapabilities) {
+                                    return newFixedLengthResponse(SOSHelper.getCapabilities());
+                                } else if (receivedOperation instanceof DescribeSensor) {
+                                    return newFixedLengthResponse(SOSHelper.getDescribeSensor(torgiService, torgiService.getCurrentLocation()));
                                 }
                             }
-                            try {
-                                AbstractOperation receivedOperation = AbstractOperation.getOperation(obj);
-                                if (receivedOperation != null) {
-                                    if (receivedOperation instanceof GetObservations) {
-                                        GetObservations getObservations = (GetObservations) receivedOperation;
-                                        long start = getObservations.getStartTime();
-                                        long stop = getObservations.getStopTime();
-                                        StringWriter out = new StringWriter();
-                                        ArrayList<GeoPackageSatDataHelper> measurements =
-                                                torgiService.getGeoPackageRecorder().getGnssMeasurementsSatDataBlocking(start, stop);
-                                        out.append(SOSHelper.getObservationResult(measurements));
-                                        out.append('\n');
-                                        ArrayList<GeoPackageGPSPtHelper> gpsMeasurements =
-                                                torgiService.getGeoPackageRecorder().getGPSObservationPointsBlocking(start,stop);
-                                        out.append(SOSHelper.getObservationResultGPSPts(gpsMeasurements));
-                                        return newFixedLengthResponse(out.toString());
-                                    } else if (receivedOperation instanceof GetCapabilities) {
-                                        return newFixedLengthResponse(SOSHelper.getCapabilities());
-                                    } else if (receivedOperation instanceof DescribeSensor) {
-                                        return newFixedLengthResponse(SOSHelper.getDescribeSensor(torgiService,torgiService.getCurrentLocation()));
-                                    }
-                                }
-                            } catch (UnsupportedOperationException e) {
-                                //TODO
-                                Log.e(TAG,e.getMessage());
-                                return newFixedLengthResponse(e.getMessage());
-                            }
+                        } catch (UnsupportedOperationException e) {
+                            //TODO
+                            Log.e(TAG, e.getMessage());
+                            return newFixedLengthResponse(e.getMessage());
                         }
                     }
                 } catch (IOException ioe) {
@@ -149,6 +148,36 @@ public class LiteWebServer {
             sb.append("</ul>");
             return sb.toString();
         }
+    }
+
+    private JSONObject getJSONAnywhereInHere(String data) {
+        if (data == null)
+            return null;
+        JSONObject obj = null;
+        try {
+            obj = new JSONObject(data);
+        } catch (JSONException e) {
+            if (data.indexOf('{') > -1) {
+                try {
+                    obj = new JSONObject(data.substring(data.indexOf('{')));
+                } catch (JSONException ignore) {}
+            }
+        }
+        return obj;
+    }
+
+    private JSONObject getJSONInMap(Map<String, String> map) {//handles case where the JSON data does not get mapped properly but winds up somewhere else
+        if ((map == null) || map.isEmpty())
+            return null;
+        JSONObject obj = null;
+        for (String key:map.keySet()) {
+            obj = getJSONAnywhereInHere(key);
+            if (obj == null)
+                obj = getJSONAnywhereInHere(map.get(key));
+            if (obj != null)
+                return obj;
+        }
+        return obj;
     }
 
     private void listItem(StringBuilder sb, Map.Entry<String, ? extends Object> entry) {

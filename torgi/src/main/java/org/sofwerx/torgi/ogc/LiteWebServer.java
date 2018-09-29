@@ -101,7 +101,8 @@ public class LiteWebServer {
                                     out.append(SOSHelper.getObservationResultGPSPts(gpsMeasurements));
                                     return newFixedLengthResponse(out.toString());
                                 } else if (receivedOperation instanceof GetCapabilities) {
-                                    return newFixedLengthResponse(SOSHelper.getCapabilities());
+                                    Response response = newFixedLengthResponse(SOSHelper.getCapabilities());
+                                    return response;
                                 } else if (receivedOperation instanceof DescribeSensor) {
                                     return newFixedLengthResponse(SOSHelper.getDescribeSensor(torgiService, torgiService.getCurrentLocation()));
                                 }
@@ -117,6 +118,13 @@ public class LiteWebServer {
                 } catch (ResponseException re) {
                     return newFixedLengthResponse(re.getStatus(), MIME_PLAINTEXT, re.getMessage());
                 }
+            } else if (Method.OPTIONS.equals(method)) {
+                Response response = newFixedLengthResponse("");
+                response.addHeader("Allow","POST, OPTIONS");
+                //response.addHeader("Access-Control-Allow-Origin","*");
+                //response.addHeader("Access-Control-Allow-Methods","POST, OPTIONS");
+                //response.addHeader("Access-Control-Max-Age","86400");
+                return response;
             }
 
             Map<String, List<String>> decodedQueryParameters = decodeParameters(session.getQueryParameterString());
@@ -158,7 +166,7 @@ public class LiteWebServer {
         }
     }
 
-    private JSONObject getJSONAnywhereInHere(String data) {
+    public static JSONObject getJSONAnywhereInHere(String data) {
         if (data == null)
             return null;
         JSONObject obj = null;

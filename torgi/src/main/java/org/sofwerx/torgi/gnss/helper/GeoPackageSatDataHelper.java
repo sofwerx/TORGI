@@ -57,4 +57,21 @@ public class GeoPackageSatDataHelper {
     public void setMeassuredTime(Object meassuredTime) {
         this.meassuredTime = (long) meassuredTime;
     }
+
+    public boolean isSame(GeoPackageSatDataHelper other) {
+        if (other == null)
+            return false;
+        return (constellation == other.constellation) && (svid == other.svid) && (meassuredTime == other.meassuredTime);
+    }
+
+    public void update(GeoPackageSatDataHelper other) {
+        if (other == null)
+            return;
+        if (other.id != Long.MIN_VALUE)
+            id = other.id;
+        if (!Double.isNaN(other.agc))
+            agc = other.agc;
+        if (!Double.isNaN(other.cn0))
+            cn0 = other.cn0;
+    }
 }

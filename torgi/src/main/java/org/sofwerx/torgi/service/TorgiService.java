@@ -10,7 +10,7 @@ import android.content.Intent;
 import android.content.IntentFilter;
 import android.content.SharedPreferences;
 import android.content.pm.PackageManager;
-import android.hardware.SensorEvent;
+import android.location.GnssMeasurement;
 import android.location.GnssMeasurementsEvent;
 import android.location.GnssStatus;
 import android.location.Location;
@@ -22,7 +22,6 @@ import android.os.Bundle;
 import android.os.IBinder;
 import android.preference.PreferenceManager;
 import android.support.annotation.Nullable;
-import android.support.annotation.RequiresApi;
 import android.support.v4.content.ContextCompat;
 import android.support.v4.content.FileProvider;
 import android.util.Log;
@@ -31,6 +30,7 @@ import org.sofwerx.torgi.Config;
 import org.sofwerx.torgi.gnss.DataPoint;
 import org.sofwerx.torgi.gnss.EWIndicators;
 import org.sofwerx.torgi.gnss.LatLng;
+import org.sofwerx.torgi.gnss.Satellite;
 import org.sofwerx.torgi.gnss.helper.GeoPackageGPSPtHelper;
 import org.sofwerx.torgi.gnss.helper.GeoPackageSatDataHelper;
 import org.sofwerx.torgi.listener.GeoPackageRetrievalListener;
@@ -38,6 +38,7 @@ import org.sofwerx.torgi.listener.GnssMeasurementListener;
 import org.sofwerx.torgi.R;
 import org.sofwerx.torgi.listener.SensorListener;
 import org.sofwerx.torgi.ogc.AbstractSOSBroadcastTransceiver;
+import org.sofwerx.torgi.ogc.LiteSOSClient;
 import org.sofwerx.torgi.ogc.LiteWebServer;
 import org.sofwerx.torgi.ogc.SOSHelper;
 import org.sofwerx.torgi.ogc.TorgiSOSBroadcastTransceiver;
@@ -50,7 +51,9 @@ import org.sofwerx.torgi.ui.Heatmap;
 import java.io.File;
 import java.util.ArrayList;
 
-import static java.time.Instant.now;
+import static org.sofwerx.torgi.service.TorgiService.InputSourceType.LOCAL;
+import static org.sofwerx.torgi.service.TorgiService.InputSourceType.LOCAL_FILE;
+import static org.sofwerx.torgi.service.TorgiService.InputSourceType.NETWORK;
 
 /**
  * Torgi service handles getting information from the GPS receiver (and eventually accepting data
@@ -58,12 +61,14 @@ import static java.time.Instant.now;
  * this info available to any listening UI element.
  */
 public class TorgiService extends Service {
+    public enum InputSourceType {LOCAL,NETWORK,LOCAL_FILE};
     private final static String TAG = "TORGISvc";
     private final static int TORGI_NOTIFICATION_ID = 1;
     private final static int TORGI_WEB_SERVER_NOTIFICATION_ID = 2;
     private final static String NOTIFICATION_CHANNEL = "torgi_report";
     public final static String ACTION_STOP = "STOP";
     public final static String PREFS_BIG_DATA = "bigdata";
+    public final static String PREFS_CURRENT_INPUT_MODE = "inputmode";
     private GNSSMeasurementService gnssMeasurementService = null;
     private GeoPackageRecorder geoPackageRecorder = null;
     private SensorService sensorService = null;
@@ -71,7 +76,9 @@ public class TorgiService extends Service {
     private ArrayList<LatLng> history = null;
     public final static int MAX_HISTORY_LENGTH = 50;
     private TorgiSOSBroadcastTransceiver sosBroadcastTransceiver = null;
+    private LiteSOSClient sosClient = null;
     private LiteWebServer sosServer = null;
+    private InputSourceType inputSourceType = LOCAL;
 
     public void setListener(GnssMeasurementListener listener) {
         this.listener = listener;
@@ -87,21 +94,23 @@ public class TorgiService extends Service {
     }
 
     public void start() {
+        start(inputSourceType);
+    }
+
+    public void start(InputSourceType inputSourceType) {
+        if (this.inputSourceType != inputSourceType) {
+            this.inputSourceType = inputSourceType;
+            Log.d(TAG, "TORGI mode changed to " + inputSourceType.name());
+            SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(getApplicationContext());
+            prefs.edit().putInt(PREFS_CURRENT_INPUT_MODE, inputSourceType.ordinal()).commit();
+        }
         boolean permissionsPassed = ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED;
         permissionsPassed = permissionsPassed && ContextCompat.checkSelfPermission(this, Manifest.permission.WRITE_EXTERNAL_STORAGE) == PackageManager.PERMISSION_GRANTED;
 
         if (permissionsPassed) {
-            if (geoPackageRecorder == null) {
-                geoPackageRecorder = new GeoPackageRecorder(this);
-                geoPackageRecorder.start();
-            }
-            if (gnssMeasurementService == null) {
-                gnssMeasurementService = new GNSSMeasurementService(this);
-                gnssMeasurementService.start();
-            }
-            SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(getApplicationContext());
-            if (prefs.getBoolean(PREFS_BIG_DATA, true))
-                startSensorService();
+            history = null;
+            currentLocation = null;
+            Satellite.clear();
             if (locMgr == null) {
                 locMgr = getSystemService(LocationManager.class);
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
@@ -110,10 +119,69 @@ public class TorgiService extends Service {
                 }
 
                 locMgr.requestLocationUpdates(LocationManager.GPS_PROVIDER, 1000, 0, locListener);
-                currentLocation = locMgr.getLastKnownLocation(LocationManager.GPS_PROVIDER);
-                setForeground();
+                if (inputSourceType == LOCAL)
+                    currentLocation = locMgr.getLastKnownLocation(LocationManager.GPS_PROVIDER);
+            } else {
+                if (inputSourceType == LOCAL) {
+                    currentLocation = locMgr.getLastKnownLocation(LocationManager.GPS_PROVIDER);
+                    if (listener != null)
+                        listener.onLocationChanged(currentLocation);
+                }
             }
+            if (inputSourceType == LOCAL_FILE) {
+                if (geoPackageRecorder != null)
+                    geoPackageRecorder.shutdown();
+            } else {
+                if (geoPackageRecorder == null) {
+                    geoPackageRecorder = new GeoPackageRecorder(this);
+                    geoPackageRecorder.start();
+                }
+            }
+            if (gnssMeasurementService == null) {
+                gnssMeasurementService = new GNSSMeasurementService(this);
+                gnssMeasurementService.start();
+            } else
+                gnssMeasurementService.clear();
+            SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(getApplicationContext());
+            if (inputSourceType == LOCAL) {
+                if (prefs.getBoolean(PREFS_BIG_DATA, true))
+                    startSensorService();
+                if (sosServer == null)
+                    sosServer = new LiteWebServer(this);
+                if (sosClient != null) {
+                    sosClient.shutdown();
+                    sosClient = null;
+                }
+                setForeground();
+            } else {
+                if (sosServer != null) {
+                    sosServer.stop();
+                    sosServer = null;
+                    NotificationManager notificationManager = getSystemService(NotificationManager.class);
+                    notificationManager.cancel(TORGI_WEB_SERVER_NOTIFICATION_ID);
+                }
+                unregisterLocalSensors();
+                if (inputSourceType == NETWORK) {
+                    if (sosClient == null)
+                        sosClient = new LiteSOSClient(this);
+                    String serverIP = prefs.getString(Config.PREFS_LAST_SOS_SERVER_IP,null);
+                    //TODO if (serverIP != null) {
+                    //    sosClient.setIP(serverIP);
+                        sosClient.start();
+                    //}
+                    setForeground();
+                }
+            }
+            Heatmap.clear();
         }
+    }
+
+    public LiteSOSClient getSosClient() {
+        return sosClient;
+    }
+
+    public InputSourceType getInputType() {
+        return inputSourceType;
     }
 
     public void startSensorService() {
@@ -131,41 +199,50 @@ public class TorgiService extends Service {
         }
     }
 
-    private final SensorListener sensorListener = new SensorListener() {
-        @Override
-        public void onSensorUpdated(SensorEvent event) {
-            if (geoPackageRecorder != null)
-                geoPackageRecorder.onSensorUpdated(event);
-        }
+    private final SensorListener sensorListener = event -> {
+        if (geoPackageRecorder != null)
+            geoPackageRecorder.onSensorUpdated(event);
     };
 
-    @RequiresApi(26)
     private final GnssStatus.Callback statusListener = new GnssStatus.Callback() {
         public void onSatelliteStatusChanged(final GnssStatus status) {
-            if (geoPackageRecorder != null)
-                geoPackageRecorder.onSatelliteStatusChanged(status);
-            if (listener != null)
-                listener.onSatStatusUpdated(status);
+            if (inputSourceType == LOCAL) {
+                if (geoPackageRecorder != null)
+                    geoPackageRecorder.onSatelliteStatusChanged(status);
+                if (listener != null)
+                    listener.onSatStatusUpdated(status);
+            }
         }
     };
 
-    @RequiresApi(26)
     private final GnssMeasurementsEvent.Callback measurementListener = new GnssMeasurementsEvent.Callback() {
         public void onGnssMeasurementsReceived(GnssMeasurementsEvent event) {
-            if (geoPackageRecorder != null)
-                geoPackageRecorder.onGnssMeasurementsReceived(event);
-            if (gnssMeasurementService != null)
-                gnssMeasurementService.onGnssMeasurementsReceived(currentLocation, event);
-            //if (listener != null)
-            //    listener.onGnssMeasurementReceived(event);
+            if (inputSourceType == LOCAL) {
+                if (geoPackageRecorder != null)
+                    geoPackageRecorder.onGnssMeasurementsReceived(event);
+                if (gnssMeasurementService != null)
+                    gnssMeasurementService.onGnssMeasurementsReceived(currentLocation, event);
+            }
         }
     };
+
+    /**
+     * When GeoPackageSatDataHelper data is received from an external source
+     * @param data
+     */
+    public void onGeoPackageSatDataHelperReceived(ArrayList<GeoPackageSatDataHelper> data) {
+        if (geoPackageRecorder != null)
+            geoPackageRecorder.onGeoPackageSatDataHelperReceived(data);
+        if (gnssMeasurementService != null)
+            gnssMeasurementService.onGeoPackageSatDataHelperReceived(currentLocation,data);
+        //TODO also contribute to the gnssMe
+    }
 
     public ArrayList<LatLng> getLocationHistory() {
         return history;
     }
 
-    public void retreiveHistoryFromGeoPackage() {
+    public void retrieveHistoryFromGeoPackage() {
         if (geoPackageRecorder != null) {
             GeoPackageRetrievalListener listener = new GeoPackageRetrievalListener() {
                 @Override
@@ -183,33 +260,38 @@ public class TorgiService extends Service {
         }
     }
 
+    public void updateLocation(final Location loc) {
+        currentLocation = loc;
+        if (history == null)
+            history = new ArrayList<>();
+        history.add(new LatLng(loc.getLatitude(), loc.getLongitude()));
+        if (history.size() > 1) {
+            if (history.size() > MAX_HISTORY_LENGTH)
+                history.remove(0);
+        }
+        if (geoPackageRecorder != null)
+            geoPackageRecorder.onLocationChanged(loc);
+        if (listener != null)
+            listener.onLocationChanged(loc);
+
+    }
+
     private LocationListener locListener = new LocationListener() {
         public void onProviderEnabled(String provider) {
-            if (listener != null)
+            if ((listener != null) && (inputSourceType == LOCAL))
                 listener.onProviderChanged(provider, true);
         }
 
         public void onProviderDisabled(String provider) {
-            if (listener != null)
+            if ((listener != null) && (inputSourceType == LOCAL))
                 listener.onProviderChanged(provider, false);
         }
 
-        public void onStatusChanged(final String provider, int status, Bundle extras) {
-        }
+        public void onStatusChanged(final String provider, int status, Bundle extras) {}
 
         public void onLocationChanged(final Location loc) {
-            currentLocation = loc;
-            if (history == null)
-                history = new ArrayList<>();
-            history.add(new LatLng(loc.getLatitude(), loc.getLongitude()));
-            if (history.size() > 1) {
-                if (history.size() > MAX_HISTORY_LENGTH)
-                    history.remove(0);
-            }
-            if (geoPackageRecorder != null)
-                geoPackageRecorder.onLocationChanged(loc);
-            if (listener != null)
-                listener.onLocationChanged(loc);
+            if (inputSourceType == LOCAL)
+                updateLocation(loc);
         }
     };
 
@@ -223,7 +305,7 @@ public class TorgiService extends Service {
     @Nullable
     @Override
     public IBinder onBind(Intent intent) {
-        start();
+        start(inputSourceType);
         return mBinder;
     }
 
@@ -231,14 +313,27 @@ public class TorgiService extends Service {
     public void onCreate() {
         super.onCreate();
         createNotificationChannel();
+        SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(getApplicationContext());
+        int inputModeIndex = prefs.getInt(PREFS_CURRENT_INPUT_MODE,0);
+        InputSourceType[] sources = InputSourceType.values();
+        if ((inputModeIndex >= 0) && (inputModeIndex < sources.length))
+            inputSourceType = sources[inputModeIndex];
         sosBroadcastTransceiver = new TorgiSOSBroadcastTransceiver(this);
         IntentFilter intentFilter = new IntentFilter(AbstractSOSBroadcastTransceiver.ACTION_SOS);
         registerReceiver(sosBroadcastTransceiver, intentFilter);
-        sosServer = new LiteWebServer(this); //TODO check some Config to see if we want this to start
     }
 
     @Override
     public void onDestroy() {
+        if (locMgr != null) {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                locMgr.unregisterGnssMeasurementsCallback(measurementListener);
+                locMgr.unregisterGnssStatusCallback(statusListener);
+            }
+            if (locListener != null)
+                locMgr.removeUpdates(locListener);
+            locMgr = null;
+        }
         if (sosServer != null)
             sosServer.stop();
         NotificationManager notificationManager = getSystemService(NotificationManager.class);
@@ -251,17 +346,11 @@ public class TorgiService extends Service {
             }
             sosBroadcastTransceiver = null;
         }
-        if (locMgr != null) {
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                locMgr.unregisterGnssMeasurementsCallback(measurementListener);
-                locMgr.unregisterGnssStatusCallback(statusListener);
-            }
-            if (locListener != null)
-                locMgr.removeUpdates(locListener);
-        }
-        stopSensorService();
-        if (gnssMeasurementService != null)
+        unregisterLocalSensors();
+        if (gnssMeasurementService != null) {
             gnssMeasurementService.shutdown();
+            gnssMeasurementService = null;
+        }
         String dbFile = null;
         if (geoPackageRecorder != null)
             dbFile = geoPackageRecorder.shutdown();
@@ -279,6 +368,10 @@ public class TorgiService extends Service {
 
         }
         super.onDestroy();
+    }
+
+    private void unregisterLocalSensors() {
+        stopSensorService();
     }
 
     @Override
@@ -319,8 +412,21 @@ public class TorgiService extends Service {
         builder.setContentIntent(pendingIntent);
         builder.setSmallIcon(R.drawable.ic_notification_torgi);
         builder.setContentTitle(getResources().getString(R.string.app_name));
-        builder.setTicker(getResources().getString(R.string.notification));
-        builder.setContentText(getResources().getString(R.string.notification));
+        switch (inputSourceType) {
+            case NETWORK:
+                builder.setTicker(getResources().getString(R.string.notification_remote));
+                builder.setContentText(getResources().getString(R.string.notification_remote));
+                break;
+
+            case LOCAL_FILE:
+                builder.setTicker(getResources().getString(R.string.notification_historical));
+                builder.setContentText(getResources().getString(R.string.notification_historical));
+                break;
+
+            default:
+                builder.setTicker(getResources().getString(R.string.notification));
+                builder.setContentText(getResources().getString(R.string.notification));
+        }
 
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O)
             builder.setChannelId(NOTIFICATION_CHANNEL);

@@ -3,13 +3,19 @@
     xmlns:tools="http://schemas.android.com/tools"
     tools:context="org.sofwerx.signalmonitor.MainActivity">
     <item
-        android:id="@+id/action_settings"
+        android:id="@+id/action_switch_input"
         android:orderInCategory="100"
+        android:title="@string/action_switch_input"
+        android:icon="@drawable/ic_action_input"
+        app:showAsAction="ifRoom" />
+    <item
+        android:id="@+id/action_settings"
+        android:orderInCategory="200"
         android:title="@string/action_settings"
         app:showAsAction="never" />
     <item
         android:id="@+id/action_about"
-        android:orderInCategory="200"
+        android:orderInCategory="300"
         android:title="@string/about"
         app:showAsAction="never" />
 </menu>

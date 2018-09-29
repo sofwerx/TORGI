@@ -385,6 +385,65 @@ public class GeoPackageRecorder extends HandlerThread {
         }
     }
 
+    /**
+     * This class takes GeoPackageSatDataHelper info (which is a stripped down version that comes
+     * over OGC SOS GetObservation) and puts it in the geopackage
+     * TODO
+     * This has a lot of duplicate code for the onGnssMeasurementReceived call, so it would be a good
+     * idea to create an class that could handle both - otherwise there's a significant risk of gettting
+     * out of sync when the GeoPackage structure is changed
+     */
+    public void onGeoPackageSatDataHelperReceived(ArrayList<GeoPackageSatDataHelper> data) {
+        if ((data == null) || data.isEmpty())
+            return;
+        for (GeoPackageSatDataHelper g:data) {
+            String con = SatType.get(g.getConstellation().ordinal());
+
+            SimpleAttributesDao satDao = RTE.getSimpleAttributesDao(satTblName);
+            SimpleAttributesRow satrow = satDao.newRow();
+
+            satrow.setValue(SAT_DATA_MEASSURED_TIME, g.getMeassuredTime());
+            satrow.setValue(SAT_DATA_SVID, g.getSvid());
+            satrow.setValue(SAT_DATA_CONSTELLATION, con);
+            satrow.setValue(SAT_DATA_CN0, Double.isNaN(g.getCn0())?100d:g.getCn0());
+
+            if (Double.isNaN(g.getAgc())) {
+                satrow.setValue("agc", 0d);
+                satrow.setValue("has_agc", 0);
+            } else {
+                satrow.setValue("agc", g.getAgc());
+                satrow.setValue("has_agc", 1);
+            }
+
+            satrow.setValue("sync_state_flags", 0);
+            satrow.setValue("sync_state_txt", " ");
+            satrow.setValue("sat_time_nanos", 0d);
+            satrow.setValue("sat_time_1sigma_nanos", 0d);
+            satrow.setValue("rcvr_time_offset_nanos", 0d);
+            satrow.setValue("multipath", 0);
+
+            satrow.setValue("carrier_freq_hz", 0d);
+            satrow.setValue("has_carrier_freq", 0);
+
+            satrow.setValue("accum_delta_range", 0d);
+            satrow.setValue("accum_delta_range_1sigma", 0d);
+            satrow.setValue("accum_delta_range_state_flags", 0);
+            satrow.setValue("accum_delta_range_state_txt", " ");
+            satrow.setValue("pseudorange_rate_mps", 0d);
+            satrow.setValue("pseudorange_rate_1sigma", 0d);
+
+            satrow.setValue("in_fix", 0);
+            satrow.setValue("has_almanac", 0);
+            satrow.setValue("has_ephemeris", 0);
+            satrow.setValue("has_carrier_freq", 0);
+            satrow.setValue("elevation_deg", 0.0);
+            satrow.setValue("azimuth_deg", 0.0);
+
+            satrow.setValue("data_dump", "");
+            satDao.insert(satrow);
+        }
+    }
+
     public void onGnssMeasurementsReceived(final GnssMeasurementsEvent event) {
         if (ready.get() && (handler != null) && (event != null)) {
             handler.post(() -> {

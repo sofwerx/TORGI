@@ -15,7 +15,9 @@ import org.sofwerx.torgi.gnss.GNSSEWValues;
 import org.sofwerx.torgi.gnss.SatMeasurement;
 import org.sofwerx.torgi.gnss.Satellite;
 import org.sofwerx.torgi.gnss.SpaceTime;
+import org.sofwerx.torgi.gnss.helper.GeoPackageSatDataHelper;
 
+import java.util.ArrayList;
 import java.util.Collection;
 
 public class GNSSMeasurementService extends Thread {
@@ -30,6 +32,10 @@ public class GNSSMeasurementService extends Thread {
 
     public GNSSMeasurementService(TorgiService torgiService) {
         this.torgiService = torgiService;
+        ewDetection = new EWDetection();
+    }
+
+    public void clear() {
         ewDetection = new EWDetection();
     }
 
@@ -62,6 +68,39 @@ public class GNSSMeasurementService extends Thread {
             handler.removeCallbacks(periodicHelper);
         if (looper != null)
             looper.quit();
+    }
+
+    /**
+     * Method that helps digest data received over OGC SOS GetObservation
+     * @param data
+     */
+    public void onGeoPackageSatDataHelperReceived(final Location location,final ArrayList<GeoPackageSatDataHelper> data) {
+        if ((data == null) || data.isEmpty())
+            return;
+        handler.post(() -> {
+            synchronized (ewDetection) {
+                DataPoint dp = null;
+                for (GeoPackageSatDataHelper satData:data) {
+                    Satellite sat = Satellite.get(satData.getConstellation(),satData.getSvid());
+                    SatMeasurement satMeasurement = new SatMeasurement(sat, new GNSSEWValues((float)satData.getCn0(),satData.getAgc()));
+                    if (dp == null) {
+                        if (location == null)
+                            dp = new DataPoint(new SpaceTime(satData.getMeassuredTime()));
+                        else {
+                            /*FIXME this is a slight bit of assumption, but basically, we are assuming that the
+                             GeoPackageSatDataHelper data was collected at the most recent location (should at least be very nearby*/
+                            if (location.hasAltitude())
+                                dp = new DataPoint(new SpaceTime(location.getLatitude(), location.getLongitude(), location.getAltitude(), satData.getMeassuredTime()));
+                            else
+                                dp = new DataPoint(new SpaceTime(location.getLatitude(), location.getLongitude(), Double.NaN, satData.getMeassuredTime()));
+                        }
+                    }
+                    dp.add(satMeasurement);
+                }
+                ewDetection.add(dp);
+                torgiService.onEWDataProcessed(dp);
+            }
+        });
     }
 
     public void onGnssMeasurementsReceived(final Location loc, GnssMeasurementsEvent event) {

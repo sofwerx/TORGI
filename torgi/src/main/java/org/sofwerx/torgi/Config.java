@@ -13,6 +13,7 @@ public class Config {
     public final static String PREFS_AUTO_SHARE = "autoshare";
     public final static String PREFS_PROCESS_EW = "processew";
     public final static String PREFS_UUID = "callsign";
+    public final static String PREFS_LAST_SOS_SERVER_IP = "sosip";
 
     private static Config instance = null;
     private String savedDir = null;

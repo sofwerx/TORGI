@@ -16,6 +16,8 @@
     <string name="risk_high">GNSS Risk HIGH</string>
     <string name="risk_unknown">Determining current GNSS risk...</string>
 
+    <string name="action_switch_input">Source</string>
+
     <!-- About -->
     <string name="legal">Legal</string>
     <string name="acknowledgements">Acknowledgements</string>

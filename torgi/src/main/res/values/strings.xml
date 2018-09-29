@@ -1,6 +1,8 @@
 <resources>
     <string name="torgi_full_name">Tactical Observation of RF &amp; GNSS Interference</string>
     <string name="notification">TORGI is collecting data...</string>
+    <string name="notification_remote">TORGI is listening for remote data...</string>
+    <string name="notification_historical">TORGI is reviewing old data...</string>
     <string name="quit_run_in_background">Run in background</string>
     <string name="does_not_support_battery_optimization">This device does not support battery optimization.</string>
     <string name="enable_battery_optimization">Settings adjustment recommended</string>

@@ -14,7 +14,6 @@ import java.util.List;
 public class HeatmapOverlay {
     private FolderOverlay heatmapOverlay = null;
     private final MapView osmMap;
-    private boolean rendering = false;
     private final static String[] GRADIENT = {
             "#4400FF00",
             "#5533FF00",
@@ -35,33 +34,28 @@ public class HeatmapOverlay {
     }
 
     public void initOverlay() {
-        if (!rendering) {
-            rendering = true;
+        if (heatmapOverlay != null)
+            osmMap.getOverlayManager().remove(heatmapOverlay);
+        heatmapOverlay = new FolderOverlay();
 
-            if (heatmapOverlay != null)
-                osmMap.getOverlayManager().remove(heatmapOverlay);
-            heatmapOverlay = new FolderOverlay();
-
-            new Thread() {
-                @Override
-                public void run() {
-                    ArrayList<Heatmap> heatmaps = Heatmap.getHeatmap();
-                    if ((heatmaps != null) && !heatmaps.isEmpty()) {
-                        for (Heatmap heatmap:heatmaps) {
-                            Polygon poly = createPolygon(heatmap);
-                            if (poly != null)
-                                heatmap.setPolygon(poly);
-                        }
+        new Thread() {
+            @Override
+            public void run() {
+                ArrayList<Heatmap> heatmaps = Heatmap.getHeatmap();
+                if ((heatmaps != null) && !heatmaps.isEmpty()) {
+                    for (Heatmap heatmap:heatmaps) {
+                        Polygon poly = createPolygon(heatmap);
+                        if (poly != null)
+                           heatmap.setPolygon(poly);
                     }
+                }
 
-                    osmMap.post(() -> {
-                        osmMap.getOverlayManager().add(heatmapOverlay);
-                        osmMap.invalidate();
-                        rendering = false;
+                osmMap.post(() -> {
+                    osmMap.getOverlayManager().add(heatmapOverlay);
+                    osmMap.invalidate();
                     });
                 }
             }.start();
-        }
     }
 
     public static int getFillColor(int percent) {

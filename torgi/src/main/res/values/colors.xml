@@ -10,6 +10,7 @@
     <color name="darkgrey">#333333</color>
 
     <color name="brightgreen">#FF77FF77</color>
+    <color name="brightyellow">#FFFFFF77</color>
     <color name="brightred">#FFFF7777</color>
 
     <!-- chart colors -->

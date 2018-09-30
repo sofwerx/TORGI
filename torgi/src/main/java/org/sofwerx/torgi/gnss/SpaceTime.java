@@ -21,6 +21,10 @@ public class SpaceTime {
         this.time = time;
     }
 
+    public SpaceTime(long time) {
+        this.time = time;
+    }
+
     public SpaceTime(Location loc) {
         if (loc == null) {
             this.time = System.currentTimeMillis();

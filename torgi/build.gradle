@@ -12,8 +12,8 @@ android {
         applicationId "org.sofwerx.torgi"
         minSdkVersion 24
         targetSdkVersion 27
-        versionCode 4
-        versionName "1.0"
+        versionCode 5
+        versionName "1.2"
         testInstrumentationRunner "android.support.test.runner.AndroidJUnitRunner"
         externalNativeBuild {
             cmake {

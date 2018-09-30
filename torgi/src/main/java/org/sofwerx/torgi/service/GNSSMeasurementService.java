@@ -24,6 +24,7 @@ public class GNSSMeasurementService extends Thread {
     private final static String TAG = "TORGI.EW";
     private Handler handler;
     private long HELPER_INTERVAL = 1000l;
+    private long SAME_OBSERVATION_WINDOW_TIME = 100l; //milliseconds to consider an observation within the same time window as other observations
     private long BASELINE_UPDATE_INTERVAL = 1000l * 60l;
     private long lastBaselineUpdate = Long.MIN_VALUE;
     private TorgiService torgiService;
@@ -80,10 +81,21 @@ public class GNSSMeasurementService extends Thread {
         handler.post(() -> {
             synchronized (ewDetection) {
                 DataPoint dp = null;
+                int dpsReceived = 0;
+                long currentObservationTime = Long.MIN_VALUE;
                 for (GeoPackageSatDataHelper satData:data) {
                     Satellite sat = Satellite.get(satData.getConstellation(),satData.getSvid());
                     SatMeasurement satMeasurement = new SatMeasurement(sat, new GNSSEWValues((float)satData.getCn0(),satData.getAgc()));
+                    if (currentObservationTime == Long.MIN_VALUE) {
+                        currentObservationTime = satData.getMeassuredTime();
+                    } else if ((Math.abs(satData.getMeassuredTime() - currentObservationTime)) > SAME_OBSERVATION_WINDOW_TIME) {
+                        ewDetection.add(dp);
+                        torgiService.onEWDataProcessed(dp);
+                        dp = null;
+                        currentObservationTime = satData.getMeassuredTime();
+                    }
                     if (dp == null) {
+                        dpsReceived++;
                         if (location == null)
                             dp = new DataPoint(new SpaceTime(satData.getMeassuredTime()));
                         else {
@@ -94,11 +106,13 @@ public class GNSSMeasurementService extends Thread {
                             else
                                 dp = new DataPoint(new SpaceTime(location.getLatitude(), location.getLongitude(), Double.NaN, satData.getMeassuredTime()));
                         }
+                        currentObservationTime = satData.getMeassuredTime();
                     }
                     dp.add(satMeasurement);
                 }
                 ewDetection.add(dp);
                 torgiService.onEWDataProcessed(dp);
+                Log.d(TAG,dpsReceived+" DataPoints received from SOS");
             }
         });
     }

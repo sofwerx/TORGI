@@ -22,7 +22,7 @@ public class LiteSOSClient extends Thread {
     //private String ip = null; //TODO
     //private String ip = "http://172.16.117.191:8080";
     private Handler handler;
-    private long HELPER_INTERVAL = 1000l * 5l;
+    private long HELPER_INTERVAL = 1000l * 1l;
     private Looper looper = null;
     private long lastResult = System.currentTimeMillis();
 
@@ -31,7 +31,7 @@ public class LiteSOSClient extends Thread {
         Looper.prepare();
         looper = Looper.myLooper();
         handler = new Handler();
-        handler.postDelayed(periodicHelper,HELPER_INTERVAL);
+        handler.postDelayed(periodicHelper,2500l); //pause to let everything else come online
         Looper.loop();
     }
 

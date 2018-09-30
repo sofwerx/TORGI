@@ -160,8 +160,14 @@ public class MainActivity extends AbstractTORGIActivity implements GnssMeasureme
                 break;
 
             case NETWORK:
-                textLive.setText("TORGI SOS @ "+Config.getInstance(this).getRemoteIp());
-                textLive.setTextColor(getColor(R.color.brightgreen));
+                String ip = Config.getInstance(this).getRemoteIp();
+                if (ip == null) {
+                    textLive.setText("Enter a host IP for TORGI SOS");
+                    textLive.setTextColor(getColor(R.color.brightyellow));
+                } else {
+                    textLive.setText("TORGI SOS @ " + ip);
+                    textLive.setTextColor(getColor(R.color.brightgreen));
+                }
                 textLive.setCompoundDrawablesWithIntrinsicBounds(R.drawable.ic_network,0,0,0);
                 break;
         }
@@ -491,7 +497,8 @@ public class MainActivity extends AbstractTORGIActivity implements GnssMeasureme
 
     @Override
     public void onEWDataProcessed(DataPoint dp,EWIndicators indicators) {
-        if ((dp != null) && (System.currentTimeMillis() > lastChartUpdate + MAX_CHART_UPDATE_RATE)) {
+        if (dp != null) {
+        //if ((dp != null) && (System.currentTimeMillis() > lastChartUpdate + MAX_CHART_UPDATE_RATE)) {
             lastChartUpdate = System.currentTimeMillis();
             int constellations = 0;
             ArrayList<SatMeasurement> measurements = dp.getMeasurements();
@@ -507,15 +514,17 @@ public class MainActivity extends AbstractTORGIActivity implements GnssMeasureme
                         constellations++;
                 }
             }
-            final int constCount = constellations;
-            runOnUiThread(() -> {
-                if (constCount == 0)
-                    textConstellations.setVisibility(View.INVISIBLE);
-                else {
-                    textConstellations.setText(constCount+" Constellation"+((constCount == 1)?"":"s"));
-                    textConstellations.setVisibility(View.VISIBLE);
-                }
-            });
+            if (System.currentTimeMillis() > lastChartUpdate + MAX_CHART_UPDATE_RATE) {
+                final int constCount = constellations;
+                runOnUiThread(() -> {
+                    if (constCount == 0)
+                        textConstellations.setVisibility(View.INVISIBLE);
+                    else {
+                        textConstellations.setText(constCount + " Constellation" + ((constCount == 1) ? "" : "s"));
+                        textConstellations.setVisibility(View.VISIBLE);
+                    }
+                });
+            }
             GNSSEWValues avg = dp.getAverageMeasurements();
             if (avg != null)
                 addEWChartEntry(dp.getSpaceTime().getTime(), avg);

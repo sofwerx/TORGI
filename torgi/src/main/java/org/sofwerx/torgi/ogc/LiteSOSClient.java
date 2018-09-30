@@ -4,19 +4,12 @@ import android.os.Handler;
 import android.os.Looper;
 import android.util.Log;
 
-import org.apache.http.HttpEntity;
-import org.apache.http.HttpHost;
-import org.apache.http.HttpResponse;
-import org.apache.http.client.HttpClient;
-import org.apache.http.client.methods.HttpGet;
-import org.apache.http.client.methods.HttpPost;
-import org.apache.http.client.methods.HttpPut;
-import org.apache.http.impl.client.DefaultHttpClient;
-import org.apache.http.util.EntityUtils;
+import org.sofwerx.torgi.Config;
 import org.sofwerx.torgi.service.TorgiService;
 
 import java.io.BufferedReader;
 import java.io.InputStreamReader;
+import java.io.OutputStream;
 import java.io.StringWriter;
 import java.net.HttpURLConnection;
 import java.net.URL;
@@ -27,19 +20,18 @@ public class LiteSOSClient extends Thread {
     private final static String TAG = "TORGI.WS";
     private final TorgiService torgiService;
     //private String ip = null; //TODO
-    //private String ip = "http://sensorweb.demo.52north.org/52n-sos-webapp/service";
     //private String ip = "http://172.16.117.191:8080";
-    private String ip = "http://172.16.117.191";
     private Handler handler;
     private long HELPER_INTERVAL = 1000l * 5l;
     private Looper looper = null;
+    private long lastResult = System.currentTimeMillis();
 
     @Override
     public void run() {
         Looper.prepare();
         looper = Looper.myLooper();
         handler = new Handler();
-        handler.post(periodicHelper);
+        handler.postDelayed(periodicHelper,HELPER_INTERVAL);
         Looper.loop();
     }
 
@@ -54,33 +46,43 @@ public class LiteSOSClient extends Thread {
         this.torgiService = torgiService;
     }
 
-    /**
-     * Sets the ip (or ip and port like "172.16.117.191:8080" for the SOS that is serving up TORGI data)
-     * @param ip
-     */
-    public void setIP(String ip) {
-        this.ip = ip;
-    }
-
     private final Runnable periodicHelper = new Runnable() {
         @Override
         public void run() {
             Log.d(TAG,"GNSS measurement baseline updated");
+            String ip = Config.getInstance(torgiService).getRemoteIp();
             if (ip == null) {
                 Log.e(TAG,"Cannot connect to SOS server without an ip");
             } else {
                 Log.d(TAG, "Trying to start connection with SOS on " + ip);
-                //TODO String response = postData(SOSHelper.getCapabilities());
-                String response = postData("{request: GetObservation, service: SOS, version: 2.0.0}");
+                long timeNow = System.currentTimeMillis();
+                String response = postData(ip,SOSHelper.getObservations(lastResult,timeNow));
+                Log.d(TAG,"Requesting last "+Long.toString((timeNow - lastResult)/1000l)+"s of records");
+                lastResult = timeNow;
                 SOSHelper.parseObservation(torgiService,response);
             }
-            //TODO if (handler != null)
-            //    handler.postDelayed(this, HELPER_INTERVAL);
+            if (handler != null)
+                handler.postDelayed(this, HELPER_INTERVAL);
         }
     };
 
-    //TODO this approach doesn't seem to be working
-    /*public String postData(String data) {
+    //this approach isn't working
+    /*public String postData(String ip, String data) {
+        RequestQueue queue = Volley.newRequestQueue(torgiService);
+        StringRequest stringRequest = new StringRequest(Request.Method.GET, ip,
+                response -> {
+                    Log.d(TAG,"Response is: "+ response);
+                }, error -> {
+            Log.e(TAG,"POST failed");
+        });
+
+        // Add the request to the RequestQueue.
+        queue.add(stringRequest);
+        return null;
+    }*/
+
+    //this approach isn't working
+    /*public String postData(String ip, String data) {
         String response = null;
 
         if (data != null) {
@@ -114,7 +116,8 @@ public class LiteSOSClient extends Thread {
         return response;
     }*/
 
-    public String postData(String data) {
+    //this approach isn't working
+    /*public String postData(String ip, String data) {
         String responseString = null;
         if (data != null) {
             URL url;
@@ -132,10 +135,9 @@ public class LiteSOSClient extends Thread {
             }
         }
         return responseString;
-    }
+    }*/
 
-    //TODO this approach doesn't seem to be working
-    /*public String postData(String data) {
+    private String postData(String ip, String data) {
         String response = null;
         if (data != null) {
             URL url;
@@ -144,13 +146,13 @@ public class LiteSOSClient extends Thread {
                 HttpURLConnection conn = (HttpURLConnection) url.openConnection();
                 conn.setReadTimeout(7000);
                 conn.setConnectTimeout(7000);
-                conn.setRequestMethod("POST");
-                //conn.setDoInput(true);
+                conn.setRequestMethod("GET"); //work around - this still works as a POST, but putting POST here hangs for some reason
+                conn.setDoInput(true);
                 conn.setDoOutput(true);
                 conn.setRequestProperty("Content-Type", "application/json");
-                //byte[] outputBytes = data.getBytes("UTF-8");
-                //OutputStream os = conn.getOutputStream();
-                //os.write(outputBytes);
+                byte[] outputBytes = data.getBytes("UTF-8");
+                OutputStream os = conn.getOutputStream();
+                os.write(outputBytes);
 
                 int responseCode = conn.getResponseCode();
 
@@ -174,5 +176,5 @@ public class LiteSOSClient extends Thread {
             }
         }
         return response;
-    }*/
+    }
 }

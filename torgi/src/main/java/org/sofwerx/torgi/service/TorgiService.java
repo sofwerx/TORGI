@@ -79,6 +79,7 @@ public class TorgiService extends Service {
     private LiteSOSClient sosClient = null;
     private LiteWebServer sosServer = null;
     private InputSourceType inputSourceType = LOCAL;
+    private boolean didRemoteConnectionNotification = false;
 
     public void setListener(GnssMeasurementListener listener) {
         this.listener = listener;
@@ -439,29 +440,43 @@ public class TorgiService extends Service {
         startForeground(TORGI_NOTIFICATION_ID, builder.build());
     }
 
-    public void notifyOfWebServer(String host) {
-        PendingIntent pendingIntent = null;
-        try {
-            Intent notificationIntent = new Intent(this, Class.forName("org.sofwerx.torgi.ui.MainActivity"));
-            pendingIntent = PendingIntent.getActivity(this, 0, notificationIntent, 0);
-        } catch (ClassNotFoundException ignore) {
+    public void notifyOfWebServer(String host,String remote, String error) {
+        if ((error != null) || (remote == null) || !didRemoteConnectionNotification) {
+            PendingIntent pendingIntent = null;
+            try {
+                Intent notificationIntent = new Intent(this, Class.forName("org.sofwerx.torgi.ui.MainActivity"));
+                pendingIntent = PendingIntent.getActivity(this, 0, notificationIntent, 0);
+            } catch (ClassNotFoundException ignore) {
+            }
+
+            Notification.Builder builder;
+            builder = new Notification.Builder(this);
+            builder.setContentIntent(pendingIntent);
+            String torgiHost;
+            if (error == null) {
+                if (remote == null) {
+                    builder.setSmallIcon(R.drawable.ic_notification_torgi);
+                    torgiHost = "TORGI is hosting SOS at http://" + host;
+                } else {
+                    builder.setSmallIcon(R.drawable.ic_notification_connected);
+                    torgiHost = host + " connected to " + remote;
+                    didRemoteConnectionNotification = true;
+                }
+            } else {
+                torgiHost = error;
+                builder.setSmallIcon(R.drawable.ic_notification_warning);
+            }
+            builder.setContentTitle("TORGI SOS");
+            builder.setTicker(torgiHost);
+            builder.setContentText(torgiHost);
+            builder.setAutoCancel(true);
+
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O)
+                builder.setChannelId(NOTIFICATION_CHANNEL);
+
+            NotificationManager notificationManager = getSystemService(NotificationManager.class);
+            notificationManager.notify(TORGI_WEB_SERVER_NOTIFICATION_ID, builder.build());
         }
-
-        Notification.Builder builder;
-        builder = new Notification.Builder(this);
-        builder.setContentIntent(pendingIntent);
-        builder.setSmallIcon(R.drawable.ic_notification_torgi);
-        String torgiHost = "TORGI is hosting SOS at http://" + host;
-        builder.setContentTitle("TORGI SOS");
-        builder.setTicker(torgiHost);
-        builder.setContentText(torgiHost);
-        builder.setAutoCancel(true);
-
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O)
-            builder.setChannelId(NOTIFICATION_CHANNEL);
-
-        NotificationManager notificationManager = getSystemService(NotificationManager.class);
-        notificationManager.notify(TORGI_WEB_SERVER_NOTIFICATION_ID, builder.build());
     }
 
     private void createNotificationChannel() {
@@ -498,13 +513,13 @@ public class TorgiService extends Service {
                         @Override
                         public void onGnssSatDataRetrieved(ArrayList<GeoPackageSatDataHelper> measurements) {
                             Log.d(TAG, "onGnssSatDataRetrieved()");
-                            TorgiSOSBroadcastTransceiver.broadcast(TorgiService.this, SOSHelper.getObservationResult(measurements));
+                            TorgiSOSBroadcastTransceiver.broadcast(TorgiService.this, SOSHelper.getObservationResult(measurements,null));
                         }
 
                         @Override
                         public void onGnssGeoPtRetrieved(ArrayList<GeoPackageGPSPtHelper> measurements) {
                             Log.d(TAG, "onGnssSatDataRetrieved()");
-                            TorgiSOSBroadcastTransceiver.broadcast(TorgiService.this, SOSHelper.getObservationResultGPSPts(measurements));
+                            TorgiSOSBroadcastTransceiver.broadcast(TorgiService.this, SOSHelper.getObservationResult(null,measurements));
                         }
                     });
                 }

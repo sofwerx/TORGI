@@ -2,6 +2,7 @@ package org.sofwerx.torgi.ogc;
 
 import android.content.Context;
 import android.location.Location;
+import android.util.Log;
 
 import org.apache.http.HttpResponse;
 import org.apache.http.params.HttpParams;
@@ -22,6 +23,7 @@ import java.util.Date;
 
 //Built to comply with OGC SOS v2.0, see http://cite.opengeospatial.org/pub/cite/files/edu/sos/text/main.html
 public class SOSHelper {
+    private final static String TAG = "TORGI.SOS";
     private final static String PROCEEDURE_GNSS_LOCATION = "GNSS reported location";
     private final static String PROCEEDURE_AGC = "AGC";
     private final static String PROCEEDURE_CN0 = "C/N0";
@@ -50,6 +52,30 @@ public class SOSHelper {
 
         return obj.toString();
     }
+
+    public static String getObservations(long start,long stop) {
+        JSONObject obj = new JSONObject();
+
+        try {
+            obj.put("request","GetObservation");
+            obj.put("version","2.0.0");
+            obj.put("service","SOS");
+            JSONObject temporalFilter = new JSONObject();
+            JSONObject during = new JSONObject();
+            during.put("ref","om:phenomenonTime");
+            JSONArray value = new JSONArray();
+            value.put(formatTime(start));
+            value.put(formatTime(stop));
+            during.put("value",value);
+            temporalFilter.put("during",during);
+            obj.put("temporalFilter",temporalFilter);
+        } catch (JSONException e) {
+            e.printStackTrace();
+        }
+
+        return obj.toString();
+    }
+
     public static String getDescribeSensor(Context context, Location last) {
         JSONObject obj = new JSONObject();
 
@@ -72,10 +98,17 @@ public class SOSHelper {
         return obj.toString();
     }
 
+    /**
+     * Use
+     * @param points
+     * @return
+     */
+    @Deprecated
     public static String getObservationResultGPSPts(ArrayList<GeoPackageGPSPtHelper> points) {
         return getObservationResultGPSPts(points,Integer.MAX_VALUE);
     }
 
+    @Deprecated
     public static String getObservationResultGPSPts(ArrayList<GeoPackageGPSPtHelper> points, int max) {
         //TODO this needs to be changed to better conform with OGC standards
         JSONObject obj = new JSONObject();
@@ -94,7 +127,6 @@ public class SOSHelper {
                 }
                 obj.put("observations", obs);
             }
-            return obj.toString(2);
         } catch (JSONException e) {
             e.printStackTrace();
         }
@@ -102,11 +134,11 @@ public class SOSHelper {
         return obj.toString();
     }
 
-    public static String getObservationResult(ArrayList<GeoPackageSatDataHelper> points) {
-        return getObservationResult(points,Integer.MAX_VALUE);
+    public static String getObservationResult(ArrayList<GeoPackageSatDataHelper> points,ArrayList<GeoPackageGPSPtHelper> gpsMeasurements) {
+        return getObservationResult(points, gpsMeasurements,Integer.MAX_VALUE);
     }
 
-    public static String getObservationResult(ArrayList<GeoPackageSatDataHelper> points, int max) {
+    public static String getObservationResult(ArrayList<GeoPackageSatDataHelper> points, ArrayList<GeoPackageGPSPtHelper> gpsMeasurements, int max) {
         //TODO this needs to be changed to better conform with OGC standards
         JSONObject obj = new JSONObject();
 
@@ -116,7 +148,13 @@ public class SOSHelper {
             obj.put("service","SOS");
             if ((points != null) && !points.isEmpty()) {
                 JSONArray obs = new JSONArray();
-                int tempMax = points.size();
+                int tempMax = gpsMeasurements.size();
+                if (max < tempMax)
+                    tempMax = max;
+                for (int i=0;i<tempMax;i++) {
+                    obs.put(getObservationResult(gpsMeasurements.get(i)));
+                }
+                tempMax = points.size();
                 if (max < tempMax)
                     tempMax = max;
                 for (int i=0;i<tempMax;i++) {
@@ -125,7 +163,6 @@ public class SOSHelper {
                 }
                 obj.put("observations", obs);
             }
-            return obj.toString(2);
         } catch (JSONException e) {
             e.printStackTrace();
         }
@@ -238,13 +275,16 @@ public class SOSHelper {
         if ((obj != null) && "GetObservation".equalsIgnoreCase(obj.optString("request",null))) {
             JSONArray obs = obj.optJSONArray("observations");
             if (obs != null) {
+                Log.d(TAG,obs.length()+" observations received");
+                ArrayList<GeoPackageSatDataHelper> satDatas = null;
+                ArrayList<GeoPackageGPSPtHelper> pts = null;
                 for (int i=0;i<obs.length();i++) {
                     JSONObject obsResult = obs.optJSONObject(i);
                     if (obsResult != null) {
-                        String proceedure = obj.optString("procedure",null);
-                        if (proceedure != null) {
-                            long time = parseTime(obj.optString("phenomenonTime",null));
-                            JSONObject foi = obj.optJSONObject("featureOfInterest");
+                        String procedure = obsResult.optString("procedure",null);
+                        if (procedure != null) {
+                            long time = parseTime(obsResult.optString("phenomenonTime",null));
+                            JSONObject foi = obsResult.optJSONObject("featureOfInterest");
                             if (foi == null)
                                 continue;
                             JSONObject foiName = foi.optJSONObject("name");
@@ -253,9 +293,7 @@ public class SOSHelper {
                             String id = foiName.optString("value",null);
                             if (id == null)
                                 continue;
-                            ArrayList<GeoPackageSatDataHelper> satDatas = null;
-                            ArrayList<GeoPackageGPSPtHelper> pts = null;
-                            if (PROCEEDURE_GNSS_LOCATION.equalsIgnoreCase(proceedure)) {
+                            if (PROCEEDURE_GNSS_LOCATION.equalsIgnoreCase(procedure)) {
                                 JSONObject geometry = foi.optJSONObject("geometry");
                                 if (geometry == null)
                                     continue;
@@ -279,7 +317,7 @@ public class SOSHelper {
                                     e.printStackTrace();
                                 }
                             } else {
-                                JSONObject result = obj.optJSONObject("result");
+                                JSONObject result = obsResult.optJSONObject("result");
                                 if (result == null)
                                     continue;
                                 try {
@@ -293,9 +331,9 @@ public class SOSHelper {
                                     thisSatData.setConstellation(constellation);
                                     thisSatData.setSvid(svid);
                                     thisSatData.setMeassuredTime(time);
-                                    if (PROCEEDURE_AGC.equalsIgnoreCase(proceedure))
+                                    if (PROCEEDURE_AGC.equalsIgnoreCase(procedure))
                                         thisSatData.setAgc(value);
-                                    else if (PROCEEDURE_CN0.equalsIgnoreCase(proceedure))
+                                    else if (PROCEEDURE_CN0.equalsIgnoreCase(procedure))
                                         thisSatData.setCn0(value);
                                     if (satDatas == null) {
                                         satDatas = new ArrayList<>();
@@ -318,22 +356,22 @@ public class SOSHelper {
                                     e.printStackTrace();
                                 }
                             }
-                            if (satDatas != null)
-                                torgiService.onGeoPackageSatDataHelperReceived(satDatas);
-                            if (pts != null) {
-                                for (GeoPackageGPSPtHelper pt:pts) {
-                                    Location location = new Location("TORGI");
-                                    location.setLatitude(pt.getLat());
-                                    location.setLongitude(pt.getLng());
-                                    if (!Double.isNaN(pt.getAlt()))
-                                        location.setAltitude(pt.getAlt());
-                                    location.setTime(pt.getTime());
-                                    torgiService.updateLocation(location);
-                                }
-                            }
                         }
                     }
                 }
+                if (pts != null) {
+                    for (GeoPackageGPSPtHelper pt:pts) {
+                        Location location = new Location("TORGI");
+                        location.setLatitude(pt.getLat());
+                        location.setLongitude(pt.getLng());
+                        if (!Double.isNaN(pt.getAlt()))
+                            location.setAltitude(pt.getAlt());
+                        location.setTime(pt.getTime());
+                        torgiService.updateLocation(location);
+                    }
+                }
+                if (satDatas != null)
+                    torgiService.onGeoPackageSatDataHelperReceived(satDatas);
             }
         }
     }

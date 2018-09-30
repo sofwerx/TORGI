@@ -355,7 +355,7 @@ public class GeoPackageRecorder extends HandlerThread {
                         helper.setId(row.getValue(rowID));
                         helper.setAgc(row.getValue(rowAGC));
                         helper.setCn0(row.getValue(rowCN0));
-                        helper.setConstellation(row.getValue(rowConstellation));
+                        helper.setConstellation((String)row.getValue(rowConstellation));
                         helper.setSvid(row.getValue(rowSVID));
                         helper.setMeassuredTime(row.getValue(rowMeassuredTime));
                         measurements.add(helper);
@@ -394,7 +394,7 @@ public class GeoPackageRecorder extends HandlerThread {
      * out of sync when the GeoPackage structure is changed
      */
     public void onGeoPackageSatDataHelperReceived(ArrayList<GeoPackageSatDataHelper> data) {
-        if ((data == null) || data.isEmpty())
+        if ((data == null) || data.isEmpty() || (RTE == null))
             return;
         for (GeoPackageSatDataHelper g:data) {
             String con = SatType.get(g.getConstellation().ordinal());

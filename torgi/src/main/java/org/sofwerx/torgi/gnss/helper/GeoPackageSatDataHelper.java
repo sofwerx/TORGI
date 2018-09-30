@@ -22,8 +22,12 @@ public class GeoPackageSatDataHelper {
         return constellation;
     }
 
-    public void setConstellation(Object constellation) {
+    public void setConstellation(String constellation) {
         this.constellation = Constellation.valueOf((String) constellation);
+    }
+
+    public void setConstellation(Constellation constellation) {
+        this.constellation = constellation;
     }
 
     public double getCn0() {
@@ -69,9 +73,9 @@ public class GeoPackageSatDataHelper {
             return;
         if (other.id != Long.MIN_VALUE)
             id = other.id;
-        if (!Double.isNaN(other.agc))
+        if ((!Double.isNaN(other.agc) && (Double.compare(0d,other.agc))!=0))
             agc = other.agc;
-        if (!Double.isNaN(other.cn0))
+        if ((!Double.isNaN(other.cn0) && (Double.compare(0d,other.cn0))!=0))
             cn0 = other.cn0;
     }
 }

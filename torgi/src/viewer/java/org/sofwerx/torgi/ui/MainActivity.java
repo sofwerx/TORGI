@@ -89,7 +89,7 @@ public class MainActivity extends AbstractTORGIActivity implements GnssMeasureme
         textOverview = findViewById(R.id.monitorTextOverview);
         textConstellations = findViewById(R.id.monitorConstellationCount);
         textLive = findViewById(R.id.mainLiveIndicator);
-        textLive.setOnClickListener(v -> switchInput());
+        textLive.setOnClickListener(v -> DialogSourceSelect.show(MainActivity.this,torgiService));
         ewWarningView = findViewById(R.id.mainEWStatusView);
         ((CombinedChart)findViewById(R.id.chartIAW)).setNoDataText(getString(R.string.waiting_baseline));
     }
@@ -102,7 +102,7 @@ public class MainActivity extends AbstractTORGIActivity implements GnssMeasureme
         osmMapSetup();
     }
 
-    private void clear() {
+    public void clear() {
         if (chartEW != null) {
             chartEW.clear();
             chartEW = null;
@@ -135,7 +135,7 @@ public class MainActivity extends AbstractTORGIActivity implements GnssMeasureme
         //osmMap.setTileSource(TileSourceFactory.USGS_SAT);
     }
 
-    private void switchInput() {
+    /*private void switchInput() {
         if (serviceBound && (torgiService != null)) {
             TorgiService.InputSourceType source = torgiService.getInputType();
             switch (source) {
@@ -147,12 +147,11 @@ public class MainActivity extends AbstractTORGIActivity implements GnssMeasureme
                     source = TorgiService.InputSourceType.LOCAL;
             }
             torgiService.start(source);
-            clear();
             onSourceUpdated(source);
         }
-    }
+    }*/
 
-    private void onSourceUpdated(TorgiService.InputSourceType source) {
+    public void onSourceUpdated(TorgiService.InputSourceType source) {
         switch (source) {
             case LOCAL:
                 textLive.setText(getString(R.string.live));
@@ -161,7 +160,7 @@ public class MainActivity extends AbstractTORGIActivity implements GnssMeasureme
                 break;
 
             case NETWORK:
-                textLive.setText("Network");
+                textLive.setText("TORGI SOS @ "+Config.getInstance(this).getRemoteIp());
                 textLive.setTextColor(getColor(R.color.brightgreen));
                 textLive.setCompoundDrawablesWithIntrinsicBounds(R.drawable.ic_network,0,0,0);
                 break;
@@ -372,7 +371,7 @@ public class MainActivity extends AbstractTORGIActivity implements GnssMeasureme
                 startActivity(new Intent(this,AboutActivity.class));
                 return true;
             case R.id.action_switch_input:
-                switchInput();
+                DialogSourceSelect.show(this,torgiService);
                 return true;
             default:
                 return super.onOptionsItemSelected(item);
@@ -660,10 +659,13 @@ public class MainActivity extends AbstractTORGIActivity implements GnssMeasureme
     public void onLocationChanged(final Location loc) {
         runOnUiThread(() -> {
             drawMarker(new LatLng(loc.getLatitude(), loc.getLongitude()),fmtTime.format(loc.getTime())+", ±"+(loc.hasAccuracy()?fmtAccuracy.format(loc.getAccuracy()):"")+"m");
-            int sats = loc.getExtras().getInt("satellites");
             StringBuilder label = new StringBuilder();
-            if (sats > 0)
-                label.append(sats+" satellites");
+            int sats = 0;
+            if (loc.getExtras() != null) {
+                sats = loc.getExtras().getInt("satellites",0);
+                if (sats > 0)
+                    label.append(sats + " satellites");
+            }
             if (loc.hasAccuracy()) {
                 if (sats > 0)
                     label.append(", ");

@@ -20,6 +20,11 @@
     <string name="waiting_baseline">Establishing GNSS baseline…</string>
     <string name="invalid_url">Enter a valid URL</string>
 
+    <string name="action_switch_input">Source</string>
+    <string name="source_this_device">This device\'s sensors</string>
+    <string name="source_this_network">Sensor Observation Service</string>
+    <string name="source_network_hint">network address</string>
+
     <!--<string name="torgi_ready_share">TORGI collected new data</string>
     <string name="torgi_ready_share_narrative">TORGI has new data to send back</string>-->
     <string name="share">Share</string>

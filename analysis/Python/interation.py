@@ -4,11 +4,11 @@ import os
 import pandas as pd
 
 con = sqlite3.connect(":memory:")
-import_path = '/home/summerintern18/Torgi/GPKG-DATA/'
-export_path = '/home/summerintern18/Torgi/satData'
-descrip = 'Control-'
+import_path = '/home/summerintern18/Torgi/SatData/Unprocessed'
+export_path ='/home/Torgi/SatData/Unprocessed'
+descrip =  'Control-'
 
-x = 0
+x = 83
 
 for filename in os.listdir(import_path):
 
@@ -16,23 +16,23 @@ for filename in os.listdir(import_path):
     if filename.endswith(".gpkg"):
         con = sqlite3.connect(":memory:")
         sqlite_file = import_path + filename
-        export_csv = descrip + str(x) + '.csv'
+        print(filename)
         conn = sqlite3.connect(sqlite_file)
         cur = conn.cursor()
+        data =cur.execute("SELECT id,svid,constellation,cn0,agc,azimuth_deg,elevation_deg FROM sat_data;")
 
-        cur.execute("INSERT INTO sat_data (conus,fileId , filename VALUES(?,?,?';)", (0, export_csv, filename))
-        data1 = cur.execute("SELECT id,svid,constellation,cn0,agc,azimuth_deg,elevation_deg FROM sat_data;")
+        export_csv = descrip + str(x) + '.csv'
 
-        data = {'0', filename, export_csv}
         with open(export_csv, 'wb') as csvf:
             writer = csv.writer(csvf)
             writer.writerow(
-                ['id', 'svid', 'constellation', 'cn0', 'agc', 'azimuth_deg', 'elevation_deg'])
-            writer.writerows(data + data1)
+                ['id', 'svid', 'constellation', 'cn0', 'agc', 'azimuth_deg', 'elevation_deg',"fileName", "CONUS", "fileID" , filename, 0 , descrip + str(x)])
+            writer.writerows(data)
+
             for row in export_csv:
                 input_file = open(export_csv, "r+")
                 reader_file = csv.reader(input_file)
                 value = len(list(reader_file))
+
                 # use whatever index for the value, or however you want to construct your new value
-                row = descrip + str(x)
-                writer.writerow(row)
+

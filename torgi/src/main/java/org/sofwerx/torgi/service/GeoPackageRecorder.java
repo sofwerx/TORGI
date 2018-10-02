@@ -18,6 +18,9 @@ import android.widget.Toast;
 import org.sofwerx.torgi.Config;
 import org.sofwerx.torgi.R;
 import org.sofwerx.torgi.SatStatus;
+import org.sofwerx.torgi.gnss.DataPoint;
+import org.sofwerx.torgi.gnss.EWIndicators;
+import org.sofwerx.torgi.gnss.SpaceTime;
 import org.sofwerx.torgi.gnss.helper.GeoPackageGPSPtHelper;
 import org.sofwerx.torgi.gnss.helper.GeoPackageSatDataHelper;
 import org.sofwerx.torgi.listener.GeoPackageRetrievalListener;
@@ -33,6 +36,7 @@ import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Locale;
+import java.util.TimeZone;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 import mil.nga.geopackage.BoundingBox;
@@ -126,6 +130,9 @@ public class GeoPackageRecorder extends HandlerThread {
     private final static String GPS_OBS_PT_LNG = "Lon";
     private final static String GPS_OBS_PT_ALT = "Alt";
     private final static String GPS_OBS_PT_GPS_TIME = "GPSTime";
+    private final static String GPS_OBS_PT_PROB_RFI = "ProbabilityRFI";
+    private final static String GPS_OBS_PT_PROB_CN0AGC = "ProbSpoofCN0AGC";
+    private final static String GPS_OBS_PT_PROB_CONSTELLATION = "ProbSpoofConstellation";
 
     private final static SimpleDateFormat fmtFilenameFriendlyTime = new SimpleDateFormat("YYYYMMdd HHmmss", Locale.US);
 
@@ -295,6 +302,7 @@ public class GeoPackageRecorder extends HandlerThread {
             final int rowLng = resultCursor.getColumnIndex(GPS_OBS_PT_LNG);
             final int rowAlt = resultCursor.getColumnIndex(GPS_OBS_PT_ALT);
             final int rowTime = resultCursor.getColumnIndex(GPS_OBS_PT_GPS_TIME);
+            final int rowProvider = resultCursor.getColumnIndex("Provider");
             try{
                 //FIXME this is a simplified portion of the full table; additional fields may need to be added later
                 FeatureRow row;
@@ -306,7 +314,9 @@ public class GeoPackageRecorder extends HandlerThread {
                     helper.setLng(row.getValue(rowLng));
                     helper.setAlt(row.getValue(rowAlt));
                     helper.setTime(row.getValue(rowTime));
-                    measurements.add(helper);
+                    String provider = (String)row.getValue(rowProvider);
+                    if (!"TORGI".equalsIgnoreCase(provider)) //prevent TORGI assessments from being included with raw data going over SOS
+                        measurements.add(helper);
                 }
             } finally {
                 resultCursor.close();
@@ -829,6 +839,11 @@ public class GeoPackageRecorder extends HandlerThread {
 
                         frow.setValue("data_dump", loc.toString() + " " + loc.describeContents());
 
+                        //EW risk values
+                        frow.setValue(GPS_OBS_PT_PROB_RFI,-1d);
+                        frow.setValue(GPS_OBS_PT_PROB_CN0AGC,-1d);
+                        frow.setValue(GPS_OBS_PT_PROB_CONSTELLATION,-1d);
+
                         featDao.insert(frow);
 
                         for (long id : maprows.values()) {
@@ -864,6 +879,56 @@ public class GeoPackageRecorder extends HandlerThread {
                                     " WHERE table_name = '" + PtsTableName + "';";
                             GPSgpkg.execSQL(bbsql);
                         }
+                    }
+                } catch (Exception e) {
+                    e.printStackTrace();
+                }
+            });
+        }
+    }
+
+    public void onEWDataProcessed(final DataPoint dp, final EWIndicators indicators) {
+        if (ready.get() && (handler != null) && (dp != null) && (indicators != null)) {
+            handler.post(() -> {
+                try {
+                    if (GPSgpkg != null) {
+                        FeatureDao featDao = GPSgpkg.getFeatureDao(PtsTableName);
+                        FeatureRow frow = featDao.newRow();
+                        SpaceTime st = dp.getSpaceTime();
+                        Point fix = new Point(st.getLongitude(),st.getLatitude(),st.getAltitude());
+
+                        GeoPackageGeometryData geomData = new GeoPackageGeometryData(WGS84_SRS);
+                        geomData.setGeometry(fix);
+
+                        frow.setGeometry(geomData);
+
+                        frow.setValue(GPS_OBS_PT_LAT, st.getLatitude());
+                        frow.setValue(GPS_OBS_PT_LNG, st.getLongitude());
+                        frow.setValue(GPS_OBS_PT_ALT, st.getAltitude());
+                        frow.setValue("Provider", "TORGI");
+                        frow.setValue(GPS_OBS_PT_GPS_TIME, st.getTime());
+                        frow.setValue("FixSatCount", 0);
+                        frow.setValue("RadialAccuracy", 0d);
+                        frow.setValue("HasRadialAccuracy", 0);
+                        frow.setValue("Speed", 0d);
+                        frow.setValue("HasSpeed", 0);
+                        frow.setValue("Bearing", 0d);
+                        frow.setValue("HasBearing", 0);
+
+                        SimpleDateFormat df = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS", Locale.US);
+                        df.setTimeZone(TimeZone.getTimeZone("UTC")); //needed so geopackage can handle timezone correctly
+                        String formattedDate = df.format(st.getTime())+"Z"; //FIXME this is a little hackish, but the geopackage tools apparently have a hard time dealing with anything other than UTC timezone and it must be designated with "Z" rather than "UTC"
+                        frow.setValue("SysTime", formattedDate);
+                        frow.setValue("HasVerticalAccuracy", 0);
+                        frow.setValue("VerticalAccuracy", 0d);
+                        frow.setValue("data_dump", "");
+
+                        //EW risk values
+                        frow.setValue(GPS_OBS_PT_PROB_RFI,(double)indicators.getLikelihoodRFI());
+                        frow.setValue(GPS_OBS_PT_PROB_CN0AGC,(double)indicators.getLikelihoodRSpoofCN0vsAGC());
+                        frow.setValue(GPS_OBS_PT_PROB_CONSTELLATION,(double)indicators.getLikelihoodRSpoofConstellationDisparity());
+
+                        featDao.insert(frow);
                     }
                 } catch (Exception e) {
                     e.printStackTrace();
@@ -945,6 +1010,11 @@ public class GeoPackageRecorder extends HandlerThread {
         tblcols.add(FeatureColumn.createColumn(colNum++, "HasVerticalAccuracy", INTEGER, false, null));
         tblcols.add(FeatureColumn.createColumn(colNum++, "RadialAccuracy", REAL, false, null));
         tblcols.add(FeatureColumn.createColumn(colNum++, "VerticalAccuracy", REAL, false, null));
+
+        //EW risk probability estimates
+        tblcols.add(FeatureColumn.createColumn(colNum++, GPS_OBS_PT_PROB_RFI, REAL, false, null));
+        tblcols.add(FeatureColumn.createColumn(colNum++, GPS_OBS_PT_PROB_CN0AGC, REAL, false, null));
+        tblcols.add(FeatureColumn.createColumn(colNum++, GPS_OBS_PT_PROB_CONSTELLATION, REAL, false, null));
 
         tblcols.add(FeatureColumn.createColumn(colNum++, "ElapsedRealtimeNanos", REAL, false, null));
 

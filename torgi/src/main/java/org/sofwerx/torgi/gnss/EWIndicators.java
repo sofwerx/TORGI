@@ -14,13 +14,14 @@ import java.util.ArrayList;
 public class EWIndicators {
     private final static String TAG = "TORGI.EW";
     private final static float CN0_SKEWNESS_BIAS = 1f; //weight to carry CN0 skewness vs other constellation disparities
+    private final static float GLONASS_MISSING_BIAS = 1f; //weight to carry missing Glonass vs other constellation disparities
     private final static float CHISQUARE_BIAS = 1f; //weight to carry Chi Square test vs other constellation disparities
     private final static float CONSTELLATION_AVG_CN0_BIAS = 0.5f; //weight to carry Constellation average C/N0 differences vs other constellation disparities
     private final static float GPS_SPEC_FOR_EARTH_SURFACE_CN0 = 44; //dB-Hz for ideal condition C/N0 at Earth's surface
     private float likelihoodRFI = Float.NaN;
     private float likelihoodRSpoofCN0vsAGC = Float.NaN;
     private float likelihoodRSpoofConstellationDisparity = Float.NaN;
-    private float weightOfConstellationDisparity = 1f;
+    private float weightOfConstellationDisparity = 2f;
     private float weightOfSpoofingRisk = 2f;
 
     /**
@@ -235,7 +236,7 @@ public class EWIndicators {
                     }
                 }
             }
-            Log.d(TAG,"Createst C/N0 deviation between constellations == "+Float.toString(maxDiff));
+            Log.d(TAG,"Greatest C/N0 deviation between constellations == "+Float.toString(maxDiff));
             if (maxDiff > 0f)
                 return maxDiff;
         }
@@ -268,17 +269,36 @@ public class EWIndicators {
         }
         return Float.NaN;
     }
-
     private final static float SKEWNESS_SCALE = 10f; //10 is arbitrarily chosen to set the scale for the amount of skewness
+
     private static float getSpoofingLikelihoodConstellationDisparity(DataPoint dp) {
         if (dp == null)
             return 0f;
-        //return the average of all methods for constellation differences
+        ArrayList<Constellation> constellations = dp.getConstellationsRepresented();
+        if ((constellations == null) || constellations.isEmpty()) //this should never happen - if it does, it's probably pretty bad
+            return 1f;
+        if (!DataPoint.hasConstellation(constellations,Constellation.GPS)) //if the GPS constellation is missing, that is a very high indicator of jamming
+            return 1f;
+
+        //build the average of all methods for constellation differences
         float measureCount = 0f;
         float measureSum = 0f;
 
-        ArrayList<GNSSEWValues> values = dp.getAllGNSSEWValues();
-        dp.getAverageDifferenceFromBaselineByConstellation();
+        //if the Glonass constellation is missing, that could be an indicator of jamming
+        if (!DataPoint.hasConstellation(constellations,Constellation.Glonass)) {
+            measureCount += GLONASS_MISSING_BIAS;
+            measureSum += GLONASS_MISSING_BIAS;
+        }
+
+        //ArrayList<GNSSEWValues> values = dp.getAllGNSSEWValues();
+        ArrayList<GNSSEWValues> values = new ArrayList<>();
+        GNSSEWValues[] valueArray = dp.getAverageDifferenceFromBaselineByConstellation();
+        if (valueArray != null) {
+            for (GNSSEWValues value:valueArray) {
+                if (value != null)
+                    values.add(value);
+            }
+        }
 
         //Skewness testing for all satellite C/N0 values
         float skewness = getCn0Skewness(values);

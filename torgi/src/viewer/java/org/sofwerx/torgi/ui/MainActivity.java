@@ -14,7 +14,10 @@ import android.preference.PreferenceManager;
 import android.util.Log;
 import android.view.MenuItem;
 import android.view.View;
+import android.widget.CheckBox;
+import android.widget.CompoundButton;
 import android.widget.TextView;
+import android.widget.Toast;
 import android.widget.Toolbar;
 
 import com.github.mikephil.charting.charts.CombinedChart;
@@ -65,6 +68,7 @@ public class MainActivity extends AbstractTORGIActivity implements GnssMeasureme
     private CombinedChart chartIAW = null;
     private CombinedData chartIAWData = null;
     private TextView textOverview,textConstellations,textLive;
+    private CheckBox gpsOnly;
     private GNSSStatusView ewWarningView;
     private HeatmapOverlay overlayHeatmap = null;
 
@@ -78,17 +82,28 @@ public class MainActivity extends AbstractTORGIActivity implements GnssMeasureme
     private LineDataSet setConstellation = null;
     private LineDataSet setFusedSpoof = null;
     private BarDataSet setFused = null;
+    private boolean gpsOnlyNagShown = false;
 
     private boolean nagAboutDualInstalls = true;
 
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         Config.getInstance(this).setProcessEWonboard(true);
+        Config.getInstance(this).loadPrefs();
         Toolbar toolbar = findViewById(R.id.mainToolbar);
         setActionBar(toolbar);
         textOverview = findViewById(R.id.monitorTextOverview);
         textConstellations = findViewById(R.id.monitorConstellationCount);
         textLive = findViewById(R.id.mainLiveIndicator);
+        gpsOnly = findViewById(R.id.mainGpsOnly);
+        gpsOnly.setChecked(Config.isGpsOnly());
+        gpsOnly.setOnCheckedChangeListener((buttonView, isChecked) -> {
+            Config.getInstance(MainActivity.this).setGpsOnly(isChecked);
+            if (!gpsOnlyNagShown) {
+                gpsOnlyNagShown = true;
+                Toast.makeText(MainActivity.this,getString(isChecked?R.string.gps_only_explained:R.string.not_gps_only_explained),Toast.LENGTH_LONG).show();
+            }
+        });
         textLive.setOnClickListener(v -> DialogSourceSelect.show(MainActivity.this,torgiService));
         ewWarningView = findViewById(R.id.mainEWStatusView);
         ((CombinedChart)findViewById(R.id.chartIAW)).setNoDataText(getString(R.string.waiting_baseline));
@@ -498,33 +513,41 @@ public class MainActivity extends AbstractTORGIActivity implements GnssMeasureme
     @Override
     public void onEWDataProcessed(DataPoint dp,EWIndicators indicators) {
         if (dp != null) {
-        //if ((dp != null) && (System.currentTimeMillis() > lastChartUpdate + MAX_CHART_UPDATE_RATE)) {
             lastChartUpdate = System.currentTimeMillis();
-            int constellations = 0;
-            ArrayList<SatMeasurement> measurements = dp.getMeasurements();
-            if (measurements != null) {
-                boolean[] constPresent = new boolean[Constellation.size()];
-                for (SatMeasurement measurement:measurements) {
-                    if ((measurement.getSat() != null) && (measurement.getSat().getConstellation() != null)) {
-                        constPresent[measurement.getSat().getConstellation().getValue()] = true;
-                    }
-                }
-                for (boolean constellation : constPresent) {
-                    if (constellation)
-                        constellations++;
-                }
+            ArrayList<Constellation> constellations = dp.getConstellationsRepresented();
+            final int constCount;
+            final boolean gpsWarning;
+            if (constellations == null) {
+                gpsWarning = true;
+                constCount = 0;
+            } else {
+                constCount = constellations.size();
+                gpsWarning = !DataPoint.hasConstellation(constellations,Constellation.GPS);
             }
-            if (System.currentTimeMillis() > lastChartUpdate + MAX_CHART_UPDATE_RATE) {
-                final int constCount = constellations;
-                runOnUiThread(() -> {
-                    if (constCount == 0)
-                        textConstellations.setVisibility(View.INVISIBLE);
-                    else {
-                        textConstellations.setText(constCount + " Constellation" + ((constCount == 1) ? "" : "s"));
-                        textConstellations.setVisibility(View.VISIBLE);
+            runOnUiThread(() -> {
+                if (constCount == 0)
+                    textConstellations.setVisibility(View.INVISIBLE);
+                else {
+                    if (gpsWarning) {
+                        textConstellations.setTextColor(getColor(R.color.brightred));
+                        textConstellations.setText("No GPS Constellation!");
+                    } else {
+                        if (constCount < 2) {
+                            if (constCount == 1) {
+                                textConstellations.setTextColor(getColor(R.color.brightyellow));
+                                textConstellations.setText("One Constellation");
+                            } else {
+                                textConstellations.setTextColor(getColor(R.color.brightred));
+                                textConstellations.setText("Unk Constellations");
+                            }
+                        } else {
+                            textConstellations.setTextColor(getColor(android.R.color.white));
+                            textConstellations.setText(constCount + " Constellations");
+                        }
                     }
-                });
-            }
+                    textConstellations.setVisibility(View.VISIBLE);
+                }
+            });
             GNSSEWValues avg = dp.getAverageMeasurements();
             if (avg != null)
                 addEWChartEntry(dp.getSpaceTime().getTime(), avg);

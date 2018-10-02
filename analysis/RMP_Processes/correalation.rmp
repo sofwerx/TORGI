@@ -1,0 +1,122 @@
+<?xml version="1.0" encoding="UTF-8"?><process version="9.0.002">
+  <context>
+    <input/>
+    <output/>
+    <macros/>
+  </context>
+  <operator activated="true" class="process" compatibility="9.0.002" expanded="true" name="Root" origin="GENERATED_SAMPLE">
+    <parameter key="logverbosity" value="init"/>
+    <parameter key="random_seed" value="2001"/>
+    <parameter key="send_mail" value="never"/>
+    <parameter key="notification_email" value=""/>
+    <parameter key="process_duration_for_mail" value="30"/>
+    <parameter key="encoding" value="SYSTEM"/>
+    <process expanded="true">
+      <operator activated="true" class="set_role" compatibility="9.0.002" expanded="true" height="82" name="Set Role" origin="GENERATED_SAMPLE" width="90" x="112" y="136">
+        <parameter key="attribute_name" value="agc"/>
+        <parameter key="target_role" value="regular"/>
+        <list key="set_additional_roles">
+          <parameter key="agc" value="regular"/>
+          <parameter key="cn0" value="regular"/>
+          <parameter key="elevation_deg" value="regular"/>
+          <parameter key="constellation" value="label"/>
+          <parameter key="azimuth_deg" value="regular"/>
+        </list>
+      </operator>
+      <operator activated="true" class="multiply" compatibility="9.0.002" expanded="true" height="103" name="Multiply" origin="GENERATED_SAMPLE" width="90" x="179" y="289"/>
+      <operator activated="true" class="select_attributes" compatibility="9.0.002" expanded="true" height="82" name="Select Attributes" origin="GENERATED_SAMPLE" width="90" x="380" y="34">
+        <parameter key="attribute_filter_type" value="subset"/>
+        <parameter key="attribute" value="cn0"/>
+        <parameter key="attributes" value="agc|cn0|elevation_deg|azimuth_deg"/>
+        <parameter key="use_except_expression" value="false"/>
+        <parameter key="value_type" value="attribute_value"/>
+        <parameter key="use_value_type_exception" value="false"/>
+        <parameter key="except_value_type" value="time"/>
+        <parameter key="block_type" value="attribute_block"/>
+        <parameter key="use_block_type_exception" value="false"/>
+        <parameter key="except_block_type" value="value_matrix_row_start"/>
+        <parameter key="invert_selection" value="false"/>
+        <parameter key="include_special_attributes" value="false"/>
+      </operator>
+      <operator activated="true" class="sample" compatibility="9.0.002" expanded="true" height="82" name="Sample" origin="GENERATED_SAMPLE" width="90" x="313" y="493">
+        <parameter key="sample" value="absolute"/>
+        <parameter key="balance_data" value="false"/>
+        <parameter key="sample_size" value="250"/>
+        <parameter key="sample_ratio" value="0.1"/>
+        <parameter key="sample_probability" value="0.1"/>
+        <list key="sample_size_per_class"/>
+        <list key="sample_ratio_per_class"/>
+        <list key="sample_probability_per_class"/>
+        <parameter key="use_local_random_seed" value="false"/>
+        <parameter key="local_random_seed" value="1992"/>
+      </operator>
+      <operator activated="true" class="normalize" compatibility="9.0.002" expanded="true" height="103" name="Normalize" origin="GENERATED_SAMPLE" width="90" x="514" y="34">
+        <parameter key="return_preprocessing_model" value="false"/>
+        <parameter key="create_view" value="false"/>
+        <parameter key="attribute_filter_type" value="subset"/>
+        <parameter key="attribute" value=""/>
+        <parameter key="attributes" value="agc|cn0|elevation_deg"/>
+        <parameter key="use_except_expression" value="false"/>
+        <parameter key="value_type" value="numeric"/>
+        <parameter key="use_value_type_exception" value="false"/>
+        <parameter key="except_value_type" value="real"/>
+        <parameter key="block_type" value="value_series"/>
+        <parameter key="use_block_type_exception" value="false"/>
+        <parameter key="except_block_type" value="value_series_end"/>
+        <parameter key="invert_selection" value="false"/>
+        <parameter key="include_special_attributes" value="false"/>
+        <parameter key="method" value="Z-transformation"/>
+        <parameter key="min" value="0.0"/>
+        <parameter key="max" value="1.0"/>
+        <parameter key="allow_negative_values" value="false"/>
+      </operator>
+      <operator activated="true" class="multiply" compatibility="9.0.002" expanded="true" height="103" name="Multiply (2)" origin="GENERATED_SAMPLE" width="90" x="648" y="34"/>
+      <operator activated="true" class="principal_component_analysis" compatibility="9.0.002" expanded="true" height="103" name="PCA" origin="GENERATED_SAMPLE" width="90" x="782" y="34">
+        <parameter key="dimensionality_reduction" value="keep variance"/>
+        <parameter key="variance_threshold" value="0.95"/>
+        <parameter key="number_of_components" value="1"/>
+      </operator>
+      <operator activated="true" class="covariance_matrix" compatibility="9.0.002" expanded="true" height="82" name="Covariance Matrix" origin="GENERATED_SAMPLE" width="90" x="782" y="340"/>
+      <operator activated="true" class="multiply" compatibility="9.0.002" expanded="true" height="103" name="Multiply (3)" origin="GENERATED_SAMPLE" width="90" x="514" y="493"/>
+      <operator activated="true" class="rmx_stat:pearson_correlation_matrix" compatibility="2.1.692" expanded="true" height="124" name="Correlation Matrix (Pearson)" origin="GENERATED_SAMPLE" width="90" x="849" y="493">
+        <parameter key="attribute_filter_type" value="all"/>
+        <parameter key="attribute" value=""/>
+        <parameter key="attributes" value=""/>
+        <parameter key="use_except_expression" value="false"/>
+        <parameter key="value_type" value="numeric"/>
+        <parameter key="use_value_type_exception" value="false"/>
+        <parameter key="except_value_type" value="real"/>
+        <parameter key="block_type" value="value_series"/>
+        <parameter key="use_block_type_exception" value="false"/>
+        <parameter key="except_block_type" value="value_series_end"/>
+        <parameter key="invert_selection" value="false"/>
+        <parameter key="include_special_attributes" value="false"/>
+      </operator>
+      <connect from_port="input 1" to_op="Set Role" to_port="example set input"/>
+      <connect from_op="Set Role" from_port="example set output" to_op="Multiply" to_port="input"/>
+      <connect from_op="Multiply" from_port="output 1" to_op="Select Attributes" to_port="example set input"/>
+      <connect from_op="Multiply" from_port="output 2" to_op="Sample" to_port="example set input"/>
+      <connect from_op="Select Attributes" from_port="example set output" to_op="Normalize" to_port="example set input"/>
+      <connect from_op="Sample" from_port="example set output" to_op="Multiply (3)" to_port="input"/>
+      <connect from_op="Normalize" from_port="example set output" to_op="Multiply (2)" to_port="input"/>
+      <connect from_op="Multiply (2)" from_port="output 1" to_op="PCA" to_port="example set input"/>
+      <connect from_op="Multiply (2)" from_port="output 2" to_op="Covariance Matrix" to_port="example set"/>
+      <connect from_op="PCA" from_port="example set output" to_port="result 1"/>
+      <connect from_op="PCA" from_port="original" to_port="result 2"/>
+      <connect from_op="Covariance Matrix" from_port="example set" to_port="result 6"/>
+      <connect from_op="Covariance Matrix" from_port="covariance" to_port="result 3"/>
+      <connect from_op="Multiply (3)" from_port="output 1" to_op="Correlation Matrix (Pearson)" to_port="example set input"/>
+      <connect from_op="Multiply (3)" from_port="output 2" to_port="result 4"/>
+      <connect from_op="Correlation Matrix (Pearson)" from_port="matrix" to_port="result 5"/>
+      <portSpacing port="source_input 1" spacing="0"/>
+      <portSpacing port="source_input 2" spacing="0"/>
+      <portSpacing port="sink_result 1" spacing="0"/>
+      <portSpacing port="sink_result 2" spacing="0"/>
+      <portSpacing port="sink_result 3" spacing="0"/>
+      <portSpacing port="sink_result 4" spacing="0"/>
+      <portSpacing port="sink_result 5" spacing="0"/>
+      <portSpacing port="sink_result 6" spacing="0"/>
+      <portSpacing port="sink_result 7" spacing="0"/>
+    </process>
+  </operator>
+</process>

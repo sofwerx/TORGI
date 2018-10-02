@@ -491,13 +491,15 @@ public class TorgiService extends Service {
         }
     }
 
-    public void onEWDataProcessed(DataPoint dp) {
+    public void onEWDataProcessed(final DataPoint dp) {
         if (dp != null) {
             if (Config.getInstance(this).processEWOnboard()) {
-                EWIndicators indicators = EWIndicators.getEWIndicators(dp);
+                final EWIndicators indicators = EWIndicators.getEWIndicators(dp);
                 Heatmap.put(dp, indicators);
                 if (listener != null)
                     listener.onEWDataProcessed(dp, indicators);
+                if (geoPackageRecorder != null)
+                    geoPackageRecorder.onEWDataProcessed(dp,indicators);
             }
         }
     }

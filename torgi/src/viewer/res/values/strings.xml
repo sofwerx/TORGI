@@ -16,6 +16,9 @@
     <string name="risk_high">GNSS Risk HIGH</string>
     <string name="risk_unknown">Determining current GNSS risk...</string>
 
+    <string name="gps_only_explained">Only GNSS data from the GPS constellation will be used to calculate EW risk.</string>
+    <string name="not_gps_only_explained">GNSS data from all constellations will be used to calculate EW risk.</string>
+
     <!-- About -->
     <string name="legal">Legal</string>
     <string name="acknowledgements">Acknowledgements</string>

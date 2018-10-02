@@ -19,8 +19,7 @@ import javax.net.ssl.HttpsURLConnection;
 public class LiteSOSClient extends Thread {
     private final static String TAG = "TORGI.WS";
     private final TorgiService torgiService;
-    //private String ip = null; //TODO
-    //private String ip = "http://172.16.117.191:8080";
+    private final static int TIMEOUT = 15000;
     private Handler handler;
     private long HELPER_INTERVAL = 1000l * 1l;
     private Looper looper = null;
@@ -144,8 +143,8 @@ public class LiteSOSClient extends Thread {
             try {
                 url = new URL(ip);
                 HttpURLConnection conn = (HttpURLConnection) url.openConnection();
-                conn.setReadTimeout(7000);
-                conn.setConnectTimeout(7000);
+                conn.setReadTimeout(TIMEOUT);
+                conn.setConnectTimeout(TIMEOUT);
                 conn.setRequestMethod("GET"); //work around - this still works as a POST, but putting POST here hangs for some reason
                 conn.setDoInput(true);
                 conn.setDoOutput(true);

@@ -46,17 +46,17 @@ def individual_output():
             print(filename + " is empty")
 
 
-def all_output(): ### Creates the AllOutput csv
+
+
+def combine():
+    # Creates combined file CSV and assigns headers for columns
     allOutput = "allOutput.csv"
     with open(allOutput, 'wb') as csvfile:
         fileWriter = csv.writer(csvfile)
         fileWriter.writerow(
             ['id', 'svid', 'constellation', 'cn0', 'agc', 'azimuth_deg', 'elevation_deg', "fileName", "CONUS",
              "fileId"])
-        print(allOutput)
 
-
-def combine():
     csv_path = '/home/summerintern18/Torgi/Python/'
     original = pd.read_csv('/home/summerintern18/Torgi/Python/allOutput.csv')
     for f in os.listdir(csv_path):
@@ -67,25 +67,24 @@ def combine():
                 pd.set_option('display.max_columns', None)
 
                 original2 = pd.read_csv(f)
-                print('Original', original)
-                print('Original2', original2)
+                # print('Original', original)
+                # print('Original2', original2)
 
                 original = original.append(original2, ignore_index=True)
 
             except IOError:
                 print(IOError)
 
-    ### combined_csv = pd.concat([original, original2], sort=True)
+    # combined_csv = pd.concat([original, original2], sort=True)
     original.to_csv("combined_csv.csv", index=False)
-    print('Combined', original)
+    # print('Combined', original)
 
 
 def main():
-    ##individual_output()
-    all_output()
+    individual_output()
+    # all_output()
     combine()
 
 
 main()
-
 

@@ -36,7 +36,7 @@ def individual_output():
             output_df = pd.read_csv(export_csv)
             ### Fills in Columns with Static data  to Columns added that were provided via the SQL statement
             output_df['CONUS'] = '0'  ### Working to add automatic detection for future use
-            output_df['fileID'] = fileId
+            output_df['fileId'] = fileId
             output_df['fileName'] = filename
 
             output_df.to_csv(export_csv)
@@ -58,20 +58,30 @@ def all_output(): ### Creates the AllOutput csv
 
 def combine():
     csv_path = '/home/summerintern18/Torgi/Python/'
+    original = pd.read_csv('/home/summerintern18/Torgi/Python/allOutput.csv')
     for f in os.listdir(csv_path):
 
         if f.endswith(".csv"):
+            print(f)
             try:
-                combined_csv = pd.concat([pd.read_csv(f)])
+                pd.set_option('display.max_columns', None)
 
-                combined_csv.to_csv("combined_csv.csv", index=False)
+                original2 = pd.read_csv(f)
+                print('Original', original)
+                print('Original2', original2)
+
+                original = original.append(original2, ignore_index=True)
 
             except IOError:
                 print(IOError)
 
+    ### combined_csv = pd.concat([original, original2], sort=True)
+    original.to_csv("combined_csv.csv", index=False)
+    print('Combined', original)
+
 
 def main():
-    individual_output()
+    ##individual_output()
     all_output()
     combine()
 

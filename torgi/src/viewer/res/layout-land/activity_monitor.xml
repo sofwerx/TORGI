@@ -23,34 +23,29 @@
             android:title="@string/torgi"/>
 
         <TextView
+            android:id="@+id/mainLiveIndicator"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_gravity="center"
+            android:drawableStart="@drawable/ic_satellite"
+            android:gravity="center"
+            android:text="@string/live"
+            android:textAlignment="center"
+            android:textColor="@color/brightgreen" />
+
+        <TextView
             android:id="@+id/monitorTextOverview"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:gravity="center_vertical"
+            android:gravity="center"
             android:text="No fix" />
 
-        <RelativeLayout
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content">
-
-            <TextView
-                android:id="@+id/mainLiveIndicator"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_alignParentEnd="true"
-                android:drawableStart="@drawable/ic_satellite"
-                android:gravity="center_vertical"
-                android:text="@string/live"
-                android:textColor="@color/brightgreen" />
-
-            <TextView
-                android:id="@+id/monitorConstellationCount"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_alignParentStart="true"
-                android:gravity="center_vertical"
-                android:text="Unknown constellation" />
-        </RelativeLayout>
+        <TextView
+            android:id="@+id/monitorConstellationCount"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:gravity="center"
+            android:text="Unknown constellation" />
 
         <org.osmdroid.views.MapView
             android:id="@+id/maposm"
@@ -87,28 +82,36 @@
         android:layout_weight="0.7"
         android:orientation="vertical">
 
-        <TextView
-            android:layout_width="wrap_content"
-            android:layout_height="20dp"
-            android:layout_gravity="center"
-            android:background="@drawable/warning_bg"
-            android:drawableEnd="@drawable/ic_warning"
-            android:drawableStart="@drawable/ic_warning"
-            android:layout_marginStart="8dp"
-            android:layout_marginEnd="8dp"
-            android:gravity="center"
-            android:text="WARNING - unevaluated test assumptions"
-            android:textAlignment="center"
-            android:textColor="@color/red_warning"
-            android:textSize="10sp"
-            android:textStyle="bold"
-            android:elevation="4dp"/>
-        <!--                android:drawableEnd="@drawable/ic_warning"
-            android:drawableStart="@drawable/ic_warning" -->
-        <!--<TextView
+        <RelativeLayout
             android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:text="Likelihood of EW"/>-->
+            android:layout_height="wrap_content">
+
+            <CheckBox
+                android:id="@+id/mainGpsOnly"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_alignParentStart="true"
+                android:text="GPS only"
+                android:textSize="12sp"/>
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="20dp"
+                android:layout_gravity="center"
+                android:layout_marginStart="8dp"
+                android:layout_marginEnd="8dp"
+                android:background="@drawable/warning_bg"
+                android:drawableStart="@drawable/ic_warning"
+                android:drawableEnd="@drawable/ic_warning"
+                android:elevation="4dp"
+                android:gravity="center"
+                android:text="unevaluated test assumptions"
+                android:textAlignment="center"
+                android:textColor="@color/red_warning"
+                android:textSize="10sp"
+                android:layout_centerInParent="true"
+                android:textStyle="bold" />
+        </RelativeLayout>
 
         <com.github.mikephil.charting.charts.CombinedChart
             android:id="@+id/chartEW"

@@ -1,5 +1,7 @@
 package org.sofwerx.torgi.gnss;
 
+import org.sofwerx.torgi.Config;
+
 import java.util.ArrayList;
 
 /**
@@ -47,8 +49,10 @@ public class SatMeasurement {
             return null;
         ArrayList<GNSSEWValues> values = new ArrayList<>();
         for (SatMeasurement sat:satMeasurements) {
-            if ((sat.values != null) && (sat.getSat() != null) && (sat.getSat().getBaseline() != null))
-                values.add(GNSSEWValues.getDifference(sat.values,sat.getSat().getBaseline()));
+            if ((sat.values != null) && (sat.getSat() != null) && (sat.getSat().getBaseline() != null)) {
+                if (!Config.isGpsOnly() || (sat.getSat().getConstellation() == Constellation.GPS)) //filter out non-GPS constellation satellites if user selected GPS only
+                    values.add(GNSSEWValues.getDifference(sat.values, sat.getSat().getBaseline()));
+            }
         }
         if (values.isEmpty())
             return null;

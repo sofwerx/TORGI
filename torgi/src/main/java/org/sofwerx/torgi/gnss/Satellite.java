@@ -17,6 +17,10 @@ public class Satellite {
         satellites.add(this);
     }
 
+    public static void clear() {
+        ArrayList<Satellite> satellites = new ArrayList<>();
+    }
+
     public static Satellite get(Constellation constellation, int svid) {
         Satellite sat = null;
         if (!satellites.isEmpty()) {

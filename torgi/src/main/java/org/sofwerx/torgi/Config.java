@@ -13,6 +13,9 @@ public class Config {
     public final static String PREFS_AUTO_SHARE = "autoshare";
     public final static String PREFS_PROCESS_EW = "processew";
     public final static String PREFS_UUID = "callsign";
+    public final static String PREFS_LAST_SOS_SERVER_IP = "sosip";
+    public final static String PREFS_REMOTE_IP = "remoteip";
+    public final static String PREFS_GPS_ONLY = "gpsonly";
 
     private static Config instance = null;
     private String savedDir = null;
@@ -20,11 +23,37 @@ public class Config {
     private SharedPreferences prefs = null;
     private String uuid = null;
     private Context context;
+    private String remoteIP = null;
+    private static boolean gpsOnly = false;
 
     private Config(Context context) {
         this.context = context;
         prefs = PreferenceManager.getDefaultSharedPreferences(context);
         processEWonboard = prefs.getBoolean(PREFS_PROCESS_EW,false);
+    }
+
+    public void loadPrefs() {
+        gpsOnly = prefs.getBoolean(PREFS_GPS_ONLY,false);
+    }
+
+    public String getRemoteIp() {
+        if (remoteIP == null)
+            remoteIP = prefs.getString(PREFS_REMOTE_IP,null);
+        return remoteIP;
+    }
+
+    /**
+     * Sets the ip (or ip and port like "172.16.117.191:8080" for the SOS that is serving up TORGI data)
+     * @param ip
+     */
+    public void setRemoteIp(String ip) {
+        SharedPreferences.Editor edit = prefs.edit();
+        if (ip == null)
+            edit.remove(PREFS_REMOTE_IP);
+        else
+            edit.putString(PREFS_REMOTE_IP, ip);
+        edit.commit();
+        remoteIP = ip;
     }
 
     public static Config getInstance(Context context) {
@@ -42,6 +71,15 @@ public class Config {
 
     public boolean isAutoShareEnabled() {
         return prefs.getBoolean(PREFS_AUTO_SHARE,true);
+    }
+
+    public static boolean isGpsOnly() {
+        return gpsOnly;
+    }
+
+    public void setGpsOnly(boolean gpsOnly) {
+        Config.gpsOnly = gpsOnly;
+        prefs.edit().putBoolean(PREFS_GPS_ONLY,gpsOnly).commit();
     }
 
     public boolean processEWOnboard() {

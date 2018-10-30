@@ -19,6 +19,12 @@
             android:summary="@string/share_geopackage_narrative"
             android:defaultValue="true"/>
 
+        <CheckBoxPreference
+            android:key="gpsonly"
+            android:title="@string/gps_only"
+            android:summary="@string/gps_only_narrative"
+            android:defaultValue="false"/>
+
         <Preference
             android:key="savedir"
             android:title="@string/pref_torgi_dir"

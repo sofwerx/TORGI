@@ -14,6 +14,8 @@ import android.preference.PreferenceManager;
 import android.util.Log;
 import android.view.MenuItem;
 import android.view.View;
+import android.widget.CheckBox;
+import android.widget.CompoundButton;
 import android.widget.TextView;
 import android.widget.Toast;
 import android.widget.Toolbar;
@@ -31,7 +33,6 @@ import com.github.mikephil.charting.data.LineData;
 import com.github.mikephil.charting.data.LineDataSet;
 
 import org.osmdroid.util.GeoPoint;
-import org.osmdroid.views.overlay.Polygon;
 import org.osmdroid.views.overlay.gestures.RotationGestureOverlay;
 import org.sofwerx.torgi.Config;
 import org.sofwerx.torgi.R;
@@ -42,7 +43,6 @@ import org.sofwerx.torgi.gnss.GNSSEWValues;
 import org.sofwerx.torgi.gnss.LatLng;
 import org.sofwerx.torgi.gnss.SatMeasurement;
 import org.sofwerx.torgi.listener.GnssMeasurementListener;
-import org.sofwerx.torgi.ogc.SOSHelper;
 import org.sofwerx.torgi.service.TorgiService;
 import org.sofwerx.torgi.util.PackageUtil;
 
@@ -68,6 +68,7 @@ public class MainActivity extends AbstractTORGIActivity implements GnssMeasureme
     private CombinedChart chartIAW = null;
     private CombinedData chartIAWData = null;
     private TextView textOverview,textConstellations,textLive;
+    private CheckBox gpsOnly;
     private GNSSStatusView ewWarningView;
     private HeatmapOverlay overlayHeatmap = null;
 
@@ -81,47 +82,112 @@ public class MainActivity extends AbstractTORGIActivity implements GnssMeasureme
     private LineDataSet setConstellation = null;
     private LineDataSet setFusedSpoof = null;
     private BarDataSet setFused = null;
+    private boolean gpsOnlyNagShown = false;
 
     private boolean nagAboutDualInstalls = true;
-
-    private boolean live = true;
 
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         Config.getInstance(this).setProcessEWonboard(true);
+        Config.getInstance(this).loadPrefs();
         Toolbar toolbar = findViewById(R.id.mainToolbar);
         setActionBar(toolbar);
         textOverview = findViewById(R.id.monitorTextOverview);
         textConstellations = findViewById(R.id.monitorConstellationCount);
         textLive = findViewById(R.id.mainLiveIndicator);
-        textLive.setOnClickListener(v -> updateLive(!live));
+        gpsOnly = findViewById(R.id.mainGpsOnly);
+        gpsOnly.setChecked(Config.isGpsOnly());
+        gpsOnly.setOnCheckedChangeListener((buttonView, isChecked) -> {
+            Config.getInstance(MainActivity.this).setGpsOnly(isChecked);
+            if (!gpsOnlyNagShown) {
+                gpsOnlyNagShown = true;
+                Toast.makeText(MainActivity.this,getString(isChecked?R.string.gps_only_explained:R.string.not_gps_only_explained),Toast.LENGTH_LONG).show();
+            }
+        });
+        textLive.setOnClickListener(v -> DialogSourceSelect.show(MainActivity.this,torgiService));
         ewWarningView = findViewById(R.id.mainEWStatusView);
         ((CombinedChart)findViewById(R.id.chartIAW)).setNoDataText(getString(R.string.waiting_baseline));
+    }
 
+    @Override
+    protected void onTorgiServiceConnected() {
+        super.onTorgiServiceConnected();
+        TorgiService.InputSourceType source = torgiService.getInputType();
+        onSourceUpdated(source);
         osmMapSetup();
     }
 
-    private void updateLive(boolean live) {
-        if (this.live != live) {
-            //TODO this.live = live;
-            live = true; //TODO
-            if (live) {
+    public void clear() {
+        if (chartEW != null) {
+            chartEW.clear();
+            chartEW = null;
+            chartEWData = null;
+        }
+        if (chartIAW != null) {
+            chartIAW.clear();
+            chartIAW = null;
+            chartIAWData = null;
+        }
+        ewWarningView.clear();
+        osmMap.getOverlays().clear();
+        currentOSM = null;
+        historyPolylineOSM = null;
+        overlayHeatmap = new HeatmapOverlay(osmMap);
+        Heatmap.setListener(this);
+    }
+
+    private void osmMapSetup() {
+        osmMap = findViewById(R.id.maposm);
+
+        RotationGestureOverlay mRotationGestureOverlay = new RotationGestureOverlay(osmMap);
+        mRotationGestureOverlay.setEnabled(true);
+        osmMap.getOverlays().add(mRotationGestureOverlay);
+        osmMap.setBuiltInZoomControls(false);
+        osmMap.setMultiTouchControls(true); //needed for pinch zooms
+        osmMap.setTilesScaledToDpi(true); //scales tiles to the current screen's DPI, helps with readability of labels
+        overlayHeatmap = new HeatmapOverlay(osmMap);
+        Heatmap.setListener(this);
+        //osmMap.setTileSource(TileSourceFactory.USGS_SAT);
+    }
+
+    /*private void switchInput() {
+        if (serviceBound && (torgiService != null)) {
+            TorgiService.InputSourceType source = torgiService.getInputType();
+            switch (source) {
+                case LOCAL:
+                    source = TorgiService.InputSourceType.NETWORK;
+                    break;
+
+                default:
+                    source = TorgiService.InputSourceType.LOCAL;
+            }
+            torgiService.start(source);
+            onSourceUpdated(source);
+        }
+    }*/
+
+    public void onSourceUpdated(TorgiService.InputSourceType source) {
+        switch (source) {
+            case LOCAL:
                 textLive.setText(getString(R.string.live));
                 textLive.setTextColor(getColor(R.color.brightgreen));
                 textLive.setCompoundDrawablesWithIntrinsicBounds(R.drawable.ic_satellite,0,0,0);
-                Toast.makeText(this, "This will eventually toggle between viewing realtime and recorded.", Toast.LENGTH_SHORT).show();
+                break;
 
-                //TODO temp for testing
-                Log.d(TAG, SOSHelper.getCapabilities());
-                //if (serviceBound)
-                //    torgiService.getHistory();
-
-            } else {
-                textLive.setText(getString(R.string.recorded));
-                textLive.setTextColor(getColor(R.color.brightred));
-                textLive.setCompoundDrawablesWithIntrinsicBounds(R.drawable.ic_history,0,0,0);
-            }
+            case NETWORK:
+                String ip = Config.getInstance(this).getRemoteIp();
+                if (ip == null) {
+                    textLive.setText("Enter a host IP for TORGI SOS");
+                    textLive.setTextColor(getColor(R.color.brightyellow));
+                } else {
+                    textLive.setText("TORGI SOS @ " + ip);
+                    textLive.setTextColor(getColor(R.color.brightgreen));
+                }
+                textLive.setCompoundDrawablesWithIntrinsicBounds(R.drawable.ic_network,0,0,0);
+                break;
         }
+        textConstellations.setVisibility(View.INVISIBLE);
+        textOverview.setVisibility(View.INVISIBLE);
     }
 
     @Override
@@ -189,8 +255,6 @@ public class MainActivity extends AbstractTORGIActivity implements GnssMeasureme
         setCN0.setMode(LineDataSet.Mode.CUBIC_BEZIER);
         setCN0.setDrawValues(false);
         setCN0.setDrawCircles(false);
-        //setCN0.setValueTextSize(10f);
-        //setCN0.setValueTextColor(getColor(R.color.cn0));
         setCN0.setAxisDependency(YAxis.AxisDependency.LEFT);
         d.addDataSet(setCN0);
 
@@ -320,25 +384,15 @@ public class MainActivity extends AbstractTORGIActivity implements GnssMeasureme
         return d;
     }
 
-    private void osmMapSetup() {
-        osmMap = findViewById(R.id.maposm);
-
-        RotationGestureOverlay mRotationGestureOverlay = new RotationGestureOverlay(osmMap);
-        mRotationGestureOverlay.setEnabled(true);
-        osmMap.getOverlays().add(mRotationGestureOverlay);
-        osmMap.setBuiltInZoomControls(false);
-        osmMap.setMultiTouchControls(true); //needed for pinch zooms
-        osmMap.setTilesScaledToDpi(true); //scales tiles to the current screen's DPI, helps with readability of labels
-        overlayHeatmap = new HeatmapOverlay(osmMap);
-        //osmMap.setTileSource(TileSourceFactory.USGS_SAT);
-    }
-
     @Override
     public boolean onOptionsItemSelected(MenuItem item) {
         // Handle item selection
         switch (item.getItemId()) {
             case R.id.action_about:
                 startActivity(new Intent(this,AboutActivity.class));
+                return true;
+            case R.id.action_switch_input:
+                DialogSourceSelect.show(this,torgiService);
                 return true;
             default:
                 return super.onOptionsItemSelected(item);
@@ -367,11 +421,12 @@ public class MainActivity extends AbstractTORGIActivity implements GnssMeasureme
                 dialog.show();
             }
         }
-        if (historyPolylineOSM != null) {
+        if ((historyPolylineOSM != null) && (osmMap != null)) {
             osmMap.getOverlays().remove(historyPolylineOSM);
             historyPolylineOSM = null;
         }
-        overlayHeatmap.initOverlay();
+        if (overlayHeatmap != null)
+            overlayHeatmap.initOverlay();
     }
 
     @Override
@@ -457,28 +512,39 @@ public class MainActivity extends AbstractTORGIActivity implements GnssMeasureme
 
     @Override
     public void onEWDataProcessed(DataPoint dp,EWIndicators indicators) {
-        if ((dp != null) && (System.currentTimeMillis() > lastChartUpdate + MAX_CHART_UPDATE_RATE)) {
+        if (dp != null) {
             lastChartUpdate = System.currentTimeMillis();
-            int constellations = 0;
-            ArrayList<SatMeasurement> measurements = dp.getMeasurements();
-            if (measurements != null) {
-                boolean[] constPresent = new boolean[Constellation.size()];
-                for (SatMeasurement measurement:measurements) {
-                    if ((measurement.getSat() != null) && (measurement.getSat().getConstellation() != null)) {
-                        constPresent[measurement.getSat().getConstellation().getValue()] = true;
-                    }
-                }
-                for (boolean constellation : constPresent) {
-                    if (constellation)
-                        constellations++;
-                }
+            ArrayList<Constellation> constellations = dp.getConstellationsRepresented();
+            final int constCount;
+            final boolean gpsWarning;
+            if (constellations == null) {
+                gpsWarning = true;
+                constCount = 0;
+            } else {
+                constCount = constellations.size();
+                gpsWarning = !DataPoint.hasConstellation(constellations,Constellation.GPS);
             }
-            final int constCount = constellations;
             runOnUiThread(() -> {
                 if (constCount == 0)
                     textConstellations.setVisibility(View.INVISIBLE);
                 else {
-                    textConstellations.setText(constCount+" Constellation"+((constCount == 1)?"":"s"));
+                    if (gpsWarning) {
+                        textConstellations.setTextColor(getColor(R.color.brightred));
+                        textConstellations.setText("No GPS Constellation!");
+                    } else {
+                        if (constCount < 2) {
+                            if (constCount == 1) {
+                                textConstellations.setTextColor(getColor(R.color.brightyellow));
+                                textConstellations.setText("One Constellation");
+                            } else {
+                                textConstellations.setTextColor(getColor(R.color.brightred));
+                                textConstellations.setText("Unk Constellations");
+                            }
+                        } else {
+                            textConstellations.setTextColor(getColor(android.R.color.white));
+                            textConstellations.setText(constCount + " Constellations");
+                        }
+                    }
                     textConstellations.setVisibility(View.VISIBLE);
                 }
             });
@@ -487,8 +553,11 @@ public class MainActivity extends AbstractTORGIActivity implements GnssMeasureme
                 addEWChartEntry(dp.getSpaceTime().getTime(), avg);
             if (indicators != null) {
                 addIAWChartEntry(dp.getSpaceTime().getTime(), indicators);
-                final int risk = (int)(100f*indicators.getFusedEWRisk());
-                runOnUiThread(() -> ewWarningView.setWarnPercent(risk));
+                float fusedRisk = indicators.getFusedEWRisk();
+                if (!Float.isNaN(fusedRisk)) {
+                    final int risk = (int) (100f * fusedRisk);
+                    runOnUiThread(() -> ewWarningView.setWarnPercent(risk));
+                }
             }
         }
     }
@@ -529,10 +598,12 @@ public class MainActivity extends AbstractTORGIActivity implements GnssMeasureme
                 if ((chartEW == null) && updatedAGC && updatedCN0)
                     setupEWchart(entryCN0,entryAGC);
                 if (updatedAGC || updatedCN0) {
-                    chartEWData.notifyDataChanged();
-                    chartEW.notifyDataSetChanged();
-                    chartEW.invalidate();
-                    chartIndex += 1f;
+                    if (chartEWData != null) {
+                        chartEWData.notifyDataChanged();
+                        chartEW.notifyDataSetChanged();
+                        chartEW.invalidate();
+                        chartIndex += 1f;
+                    }
                 }
             });
         }
@@ -605,10 +676,12 @@ public class MainActivity extends AbstractTORGIActivity implements GnssMeasureme
                 if ((chartIAW == null) && updatedRFI && updatedCN0AGC && updatedConstellation && updatedFusedSpoof && updatedFused)
                     setupIAWchart(entryRFI,entryCN0AGC,entryConstellation,entryFusedSpoof,entryFused);
                 if (updatedRFI || updatedCN0AGC || updatedConstellation || updatedFusedSpoof || updatedFused) {
-                    chartIAWData.notifyDataChanged();
-                    chartIAW.notifyDataSetChanged();
-                    chartIAW.invalidate();
-                    chartIndex += 1f;
+                    if (chartIAWData != null) {
+                        chartIAWData.notifyDataChanged();
+                        chartIAW.notifyDataSetChanged();
+                        chartIAW.invalidate();
+                        chartIndex += 1f;
+                    }
                 }
             });
         }
@@ -618,16 +691,20 @@ public class MainActivity extends AbstractTORGIActivity implements GnssMeasureme
     public void onLocationChanged(final Location loc) {
         runOnUiThread(() -> {
             drawMarker(new LatLng(loc.getLatitude(), loc.getLongitude()),fmtTime.format(loc.getTime())+", ±"+(loc.hasAccuracy()?fmtAccuracy.format(loc.getAccuracy()):"")+"m");
-            int sats = loc.getExtras().getInt("satellites");
             StringBuilder label = new StringBuilder();
-            if (sats > 0)
-                label.append(sats+" satellites");
+            int sats = 0;
+            if (loc.getExtras() != null) {
+                sats = loc.getExtras().getInt("satellites",0);
+                if (sats > 0)
+                    label.append(sats + " satellites");
+            }
             if (loc.hasAccuracy()) {
                 if (sats > 0)
                     label.append(", ");
                 label.append("±" + (int)loc.getAccuracy() + "m");
             }
             textOverview.setText(label.toString());
+            textOverview.setVisibility(View.VISIBLE);
         });
     }
 

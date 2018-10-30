@@ -21,6 +21,36 @@ public class DataPoint {
         this.measurements = measurements;
     }
 
+    public ArrayList<Constellation> getConstellationsRepresented() {
+        ArrayList<Constellation> constellations = null;
+        if ((measurements != null) && !measurements.isEmpty()) {
+            Satellite sat;
+            for (SatMeasurement measurement:measurements) {
+                sat = measurement.getSat();
+                if ((sat != null) && (sat.getConstellation() != null)) {
+                    if (constellations == null) {
+                        constellations = new ArrayList<>();
+                        constellations.add(measurement.getSat().getConstellation());
+                    } else {
+                        if (!hasConstellation(constellations,sat.getConstellation()))
+                            constellations.add(sat.getConstellation());
+                    }
+                }
+            }
+        }
+        return constellations;
+    }
+
+    public static boolean hasConstellation(ArrayList<Constellation> constellations, Constellation constellation) {
+        if ((constellations != null) && !constellations.isEmpty() && (constellation != null)) {
+            for (Constellation temp:constellations) {
+                if (constellation == temp)
+                    return true;
+            }
+        }
+        return false;
+    }
+
     public DataPoint(SpaceTime spaceTime) {
         this.spaceTime = spaceTime;
     }

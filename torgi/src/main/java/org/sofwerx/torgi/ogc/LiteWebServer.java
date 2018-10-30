@@ -41,7 +41,7 @@ public class LiteWebServer {
         } catch(IOException ioe) {
             Log.w(TAG, "SOS web server could not start.");
         }
-        torgiService.notifyOfWebServer(getLocalIpAddress()+":"+ PORT);
+        torgiService.notifyOfWebServer(getLocalIpAddress()+":"+ PORT,null,null);
     }
 
     public void stop() {
@@ -94,29 +94,38 @@ public class LiteWebServer {
                                     StringWriter out = new StringWriter();
                                     ArrayList<GeoPackageSatDataHelper> measurements =
                                             torgiService.getGeoPackageRecorder().getGnssMeasurementsSatDataBlocking(start, stop);
-                                    out.append(SOSHelper.getObservationResult(measurements));
-                                    out.append('\n');
                                     ArrayList<GeoPackageGPSPtHelper> gpsMeasurements =
                                             torgiService.getGeoPackageRecorder().getGPSObservationPointsBlocking(start, stop);
-                                    out.append(SOSHelper.getObservationResultGPSPts(gpsMeasurements));
+                                    out.append(SOSHelper.getObservationResult(measurements,gpsMeasurements));
+                                    torgiService.notifyOfWebServer(getLocalIpAddress()+":"+ PORT,session.getRemoteIpAddress(),null);
                                     return newFixedLengthResponse(out.toString());
                                 } else if (receivedOperation instanceof GetCapabilities) {
-                                    return newFixedLengthResponse(SOSHelper.getCapabilities());
+                                    Response response = newFixedLengthResponse(SOSHelper.getCapabilities());
+                                    return response;
                                 } else if (receivedOperation instanceof DescribeSensor) {
                                     return newFixedLengthResponse(SOSHelper.getDescribeSensor(torgiService, torgiService.getCurrentLocation()));
                                 }
                             }
                         } catch (UnsupportedOperationException e) {
-                            //TODO
                             Log.e(TAG, e.getMessage());
+                            torgiService.notifyOfWebServer(getLocalIpAddress()+":"+ PORT,null,e.getMessage());
                             return newFixedLengthResponse(e.getMessage());
                         }
                     }
                 } catch (IOException ioe) {
+                    torgiService.notifyOfWebServer(getLocalIpAddress()+":"+ PORT,null,ioe.getMessage());
                     return newFixedLengthResponse(Response.Status.INTERNAL_ERROR, MIME_PLAINTEXT, "SERVER INTERNAL ERROR: IOException: " + ioe.getMessage());
                 } catch (ResponseException re) {
+                    torgiService.notifyOfWebServer(getLocalIpAddress()+":"+ PORT,null,re.getMessage());
                     return newFixedLengthResponse(re.getStatus(), MIME_PLAINTEXT, re.getMessage());
                 }
+            } else if (Method.OPTIONS.equals(method)) {
+                Response response = newFixedLengthResponse("");
+                response.addHeader("Allow","POST, OPTIONS");
+                //response.addHeader("Access-Control-Allow-Origin","*");
+                //response.addHeader("Access-Control-Allow-Methods","POST, OPTIONS");
+                //response.addHeader("Access-Control-Max-Age","86400");
+                return response;
             }
 
             Map<String, List<String>> decodedQueryParameters = decodeParameters(session.getQueryParameterString());
@@ -158,7 +167,7 @@ public class LiteWebServer {
         }
     }
 
-    private JSONObject getJSONAnywhereInHere(String data) {
+    public static JSONObject getJSONAnywhereInHere(String data) {
         if (data == null)
             return null;
         JSONObject obj = null;

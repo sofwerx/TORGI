@@ -73,7 +73,7 @@ public class EWDetection {
 
     /**
      * Updates the baseline for all satellites
-     * @param discardSignificantDifference true = igonore any measurement that is significantly deviated from the baseline
+     * @param discardSignificantDifference true = ignore any measurement that is significantly deviated from the baseline
      */
     public void updateBaseline(boolean discardSignificantDifference) {
         if ((points != null) && !points.isEmpty() && (satellites != null) && !satellites.isEmpty()) {

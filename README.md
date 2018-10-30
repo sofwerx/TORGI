@@ -25,6 +25,9 @@ The Related Tables Extension is a community standard extension to the GeoPackage
 
 ([View / Edit diagram in browser](https://www.draw.io/?url=https%3A%2F%2Fgithub.com%2Fsofwerx%2FTORGI%2Fraw%2Fmaster%2Fdocs%2FAMOpenArchitecture.png%3Ft%3D0))
 
+### GeoPackage / SQLite Database ERD ###
+<img src="https://github.com/sofwerx/TORGI/blob/master/docs/TORGI-GPKG-ERD.png?raw=true" />
+
 ## DevOps
 
 `docker-compose up`

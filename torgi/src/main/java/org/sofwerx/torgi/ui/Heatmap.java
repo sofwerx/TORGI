@@ -22,6 +22,12 @@ public class Heatmap {
     private Polygon polygon = null;
     private static HeatmapChangeListener listener = null;
 
+    public static void clear() {
+        listener = null;
+        heatmap = null;
+        origin = null;
+    }
+
     public static ArrayList<Heatmap> getHeatmap() {
         return heatmap;
     }
@@ -47,10 +53,17 @@ public class Heatmap {
         return existing;
     }
 
+    public static Heatmap put(double lat, double lng, int rfiRisk) {
+        return put(lat,lng,rfiRisk,System.currentTimeMillis());
+    }
+
     public static Heatmap put(DataPoint dp, EWIndicators indicators) {
         if ((dp == null) || !dp.isValid() && (indicators != null))
             return null;
-        return put(dp.getSpaceTime().getLatitude(),dp.getSpaceTime().getLongitude(),Math.round(indicators.getFusedEWRisk()*100f),dp.getSpaceTime().getTime());
+        float fusedRisk = indicators.getFusedEWRisk();
+        if (Float.isNaN(fusedRisk))
+            return null;
+        return put(dp.getSpaceTime().getLatitude(),dp.getSpaceTime().getLongitude(),Math.round(fusedRisk*100f),dp.getSpaceTime().getTime());
     }
 
     public Heatmap(double lat, double lng, int rfiRisk, long time) {
@@ -96,11 +109,10 @@ public class Heatmap {
             this.rfiRisk = rfiRisk;
             if ((listener != null) && (rfiRisk > -1))
                 listener.onHeatmapChange(this);
+        //} else {
+        //    if ((polygon == null) && (listener != null))
+        //        listener.onHeatmapChange(this);
         }
-    }
-
-    public static Heatmap put(double lat, double lng, int rfiRisk) {
-        return put(lat,lng,rfiRisk,System.currentTimeMillis());
     }
 
     public BoundingBox getBox() {

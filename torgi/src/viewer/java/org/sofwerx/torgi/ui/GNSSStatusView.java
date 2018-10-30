@@ -102,4 +102,8 @@ public class GNSSStatusView extends RelativeLayout {
             invalidate();
         }
     }
+
+    public void clear() {
+        setWarnPercent(-1);
+    }
 }

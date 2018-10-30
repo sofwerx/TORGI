@@ -22,8 +22,12 @@ public class GeoPackageSatDataHelper {
         return constellation;
     }
 
-    public void setConstellation(Object constellation) {
+    public void setConstellation(String constellation) {
         this.constellation = Constellation.valueOf((String) constellation);
+    }
+
+    public void setConstellation(Constellation constellation) {
+        this.constellation = constellation;
     }
 
     public double getCn0() {
@@ -56,5 +60,22 @@ public class GeoPackageSatDataHelper {
 
     public void setMeassuredTime(Object meassuredTime) {
         this.meassuredTime = (long) meassuredTime;
+    }
+
+    public boolean isSame(GeoPackageSatDataHelper other) {
+        if (other == null)
+            return false;
+        return (constellation == other.constellation) && (svid == other.svid) && (meassuredTime == other.meassuredTime);
+    }
+
+    public void update(GeoPackageSatDataHelper other) {
+        if (other == null)
+            return;
+        if (other.id != Long.MIN_VALUE)
+            id = other.id;
+        if ((!Double.isNaN(other.agc) && (Double.compare(0d,other.agc))!=0))
+            agc = other.agc;
+        if ((!Double.isNaN(other.cn0) && (Double.compare(0d,other.cn0))!=0))
+            cn0 = other.cn0;
     }
 }

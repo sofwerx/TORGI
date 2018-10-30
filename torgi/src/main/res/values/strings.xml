@@ -1,6 +1,8 @@
 <resources>
     <string name="torgi_full_name">Tactical Observation of RF &amp; GNSS Interference</string>
     <string name="notification">TORGI is collecting data...</string>
+    <string name="notification_remote">TORGI is listening for remote data...</string>
+    <string name="notification_historical">TORGI is reviewing old data...</string>
     <string name="quit_run_in_background">Run in background</string>
     <string name="does_not_support_battery_optimization">This device does not support battery optimization.</string>
     <string name="enable_battery_optimization">Settings adjustment recommended</string>
@@ -16,6 +18,12 @@
     <string name="big_data_battery">Collecting Big Data gets more information, but will use battery a bit faster and takes up more file space.</string>
     <string name="data_saved_location">Data saved in </string>
     <string name="waiting_baseline">Establishing GNSS baseline…</string>
+    <string name="invalid_url">Enter a valid URL</string>
+
+    <string name="action_switch_input">Source</string>
+    <string name="source_this_device">This device\'s sensors</string>
+    <string name="source_this_network">Sensor Observation Service</string>
+    <string name="source_network_hint">network address</string>
 
     <!--<string name="torgi_ready_share">TORGI collected new data</string>
     <string name="torgi_ready_share_narrative">TORGI has new data to send back</string>-->
@@ -29,6 +37,8 @@
     <string name="title_activity_b">BActivity</string>
     <string name="device_callsign">Device Callsign</string>
     <string name="device_callsign_narrative">How this device identifies itself on a network</string>
+    <string name="gps_only">GPS Constellation Only</string>
+    <string name="gps_only_narrative">Only consider GNSS data from the GPS constellation when calculating EW risks</string>
     <string name="share_geopackage">Share</string>
     <string name="share_geopackage_narrative">Share the geopackage file as soon as TORGI closes</string>
 </resources>

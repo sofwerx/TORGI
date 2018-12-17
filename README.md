@@ -20,13 +20,15 @@ Observation points and associated location fix data are stored as a feature laye
 The Related Tables Extension is a community standard extension to the GeoPackage map database, moving toward full adoption by [OGC (Open Geospatial Consortium)](http://www.opengeospatial.org/).
 
 ## Open Architecture / Open Standards
+<img src="https://github.com/sofwerx/TORGI/blob/master/docs/geopackage_1_2_badge.png?raw=true" /> <img align="top" src="https://github.com/sofwerx/TORGI/blob/master/docs/Certified_OGC_Compliant_Logo_Web.gif?raw=true" />
+
+<img src="https://github.com/sofwerx/TORGI/blob/master/docs/TORGI-GPKG-ERD.png?raw=true" />
 
 ![Open Architecture / Open Standards data + communication model](docs/AMOpenArchitecture.png)
 
 ([View / Edit diagram in browser](https://www.draw.io/?url=https%3A%2F%2Fgithub.com%2Fsofwerx%2FTORGI%2Fraw%2Fmaster%2Fdocs%2FAMOpenArchitecture.png%3Ft%3D0))
 
 ### GeoPackage / SQLite Database ERD ###
-<img src="https://github.com/sofwerx/TORGI/blob/master/docs/TORGI-GPKG-ERD.png?raw=true" />
 
 ## DevOps
 

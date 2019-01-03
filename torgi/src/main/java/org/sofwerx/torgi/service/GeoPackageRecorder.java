@@ -124,7 +124,6 @@ public class GeoPackageRecorder extends HandlerThread {
     private final static String SAT_DATA_CONSTELLATION = "constellation";
     private final static String SAT_DATA_CN0 = "cn0";
     private final static String SAT_DATA_AGC = "agc";
-    //private final static String SAT_DATA_SAT_TIME_NANOS = "sat_time_nanos";
 
     private final static String GPS_OBS_PT_LAT = "Lat";
     private final static String GPS_OBS_PT_LNG = "Lon";
@@ -400,7 +399,7 @@ public class GeoPackageRecorder extends HandlerThread {
      * over OGC SOS GetObservation) and puts it in the geopackage
      * TODO
      * This has a lot of duplicate code for the onGnssMeasurementReceived call, so it would be a good
-     * idea to create an class that could handle both - otherwise there's a significant risk of gettting
+     * idea to create an class that could handle both - otherwise there's a significant risk of getting
      * out of sync when the GeoPackage structure is changed
      */
     public void onGeoPackageSatDataHelperReceived(ArrayList<GeoPackageSatDataHelper> data) {
@@ -543,7 +542,7 @@ public class GeoPackageRecorder extends HandlerThread {
                                 satrow.setValue("agc", g.getAutomaticGainControlLevelDb());
                                 satrow.setValue("has_agc", 1);
                             } else {
-                                satrow.setValue("agc", 0);
+                                satrow.setValue("agc", 0d);
                                 satrow.setValue("has_agc", 0);
                             }
                         } else {
@@ -586,8 +585,8 @@ public class GeoPackageRecorder extends HandlerThread {
                             satrow.setValue("has_ephemeris", 0);
                             satrow.setValue("has_carrier_freq", 0);
 
-                            satrow.setValue("elevation_deg", 0.0);
-                            satrow.setValue("azimuth_deg", 0.0);
+                            satrow.setValue("elevation_deg", 0.0d);
+                            satrow.setValue("azimuth_deg", 0.0d);
                         }
 
                         satrow.setValue("data_dump", g.toString());
@@ -615,8 +614,6 @@ public class GeoPackageRecorder extends HandlerThread {
                 if ((values != null) && (values.length > 0)) {
                     UserCustomDao sensorDao = RTE.getUserDao(motionTblName);
                     UserCustomRow sensorRow = sensorDao.newRow();
-                    //SimpleAttributesDao sensorDao = RTE.getSimpleAttributesDao(motionTblName);
-                    //SimpleAttributesRow sensorRow = sensorDao.newRow();
                     for (int i=1;i<sensorRow.columnCount();i++) {
                         sensorRow.setValue(i,0d);
                     }
@@ -917,7 +914,7 @@ public class GeoPackageRecorder extends HandlerThread {
 
                         SimpleDateFormat df = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS", Locale.US);
                         df.setTimeZone(TimeZone.getTimeZone("UTC")); //needed so geopackage can handle timezone correctly
-                        String formattedDate = df.format(st.getTime())+"Z"; //FIXME this is a little hackish, but the geopackage tools apparently have a hard time dealing with anything other than UTC timezone and it must be designated with "Z" rather than "UTC"
+                        String formattedDate = df.format(st.getTime())+"Z"; //this is a little hackish, but the geopackage tools apparently have a hard time dealing with anything other than UTC timezone and it must be designated with "Z" rather than "UTC"
                         frow.setValue("SysTime", formattedDate);
                         frow.setValue("HasVerticalAccuracy", 0);
                         frow.setValue("VerticalAccuracy", 0d);

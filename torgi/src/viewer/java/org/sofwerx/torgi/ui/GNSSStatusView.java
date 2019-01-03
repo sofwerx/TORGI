@@ -16,6 +16,7 @@ import android.widget.TextView;
 import org.sofwerx.torgi.R;
 
 public class GNSSStatusView extends RelativeLayout {
+    private final static long DELAY_TO_REDUCE_WARNING = 1000l * 60l; //provides a waiting period (milliseconds) before the warning level is allowed to be reduced
     private boolean showText = false;
     public final static int STATUS_DISABLED = -1;
     private int warnPercent = STATUS_DISABLED;
@@ -23,6 +24,7 @@ public class GNSSStatusView extends RelativeLayout {
     private TextView label;
     private final static int LOW_RISK_CAP = 15;
     private final static int MEDIUM_RISK_CAP = 45;
+    private long nextDowngradeEligibleTime = Long.MIN_VALUE;
     private final Context context;
 
     public GNSSStatusView(Context context) {
@@ -73,6 +75,12 @@ public class GNSSStatusView extends RelativeLayout {
 
     public void setWarnPercent(int warnPercent) {
         if (this.warnPercent != warnPercent) {
+            if (warnPercent < this.warnPercent) {
+                //ignore this update if still in the warning period for the last elevated warning level
+                if (System.currentTimeMillis() < nextDowngradeEligibleTime)
+                    return;
+            } else
+                nextDowngradeEligibleTime = System.currentTimeMillis() + DELAY_TO_REDUCE_WARNING;
             if (this.warnPercent < 0)
                 blackBar.setVisibility(View.VISIBLE);
             else if (warnPercent < 0) {

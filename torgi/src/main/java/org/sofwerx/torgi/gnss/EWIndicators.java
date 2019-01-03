@@ -46,7 +46,6 @@ public class EWIndicators {
                 if (total > 1f)
                     total = 1f;
                 return total;
-                //return Math.max(likelihoodRFI, fusedSpoofing);
             }
         } else
             return likelihoodRFI;

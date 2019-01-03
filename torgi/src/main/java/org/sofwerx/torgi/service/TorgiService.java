@@ -6,11 +6,11 @@ import android.app.NotificationChannel;
 import android.app.NotificationManager;
 import android.app.PendingIntent;
 import android.app.Service;
+import android.content.ActivityNotFoundException;
 import android.content.Intent;
 import android.content.IntentFilter;
 import android.content.SharedPreferences;
 import android.content.pm.PackageManager;
-import android.location.GnssMeasurement;
 import android.location.GnssMeasurementsEvent;
 import android.location.GnssStatus;
 import android.location.Location;
@@ -21,9 +21,9 @@ import android.os.Build;
 import android.os.Bundle;
 import android.os.IBinder;
 import android.preference.PreferenceManager;
-import android.support.annotation.Nullable;
-import android.support.v4.content.ContextCompat;
-import android.support.v4.content.FileProvider;
+import androidx.annotation.Nullable;
+import androidx.core.content.ContextCompat;
+import androidx.core.content.FileProvider;
 import android.util.Log;
 
 import org.sofwerx.torgi.Config;
@@ -61,6 +61,7 @@ import static org.sofwerx.torgi.service.TorgiService.InputSourceType.NETWORK;
  * this info available to any listening UI element.
  */
 public class TorgiService extends Service {
+    private final static long MAX_SOS_RESPONSE_BLOCK = 1000l * 60l * 15l; //the maximum size (in milliseconds) of a block of time that the SOS service should return
     public enum InputSourceType {LOCAL,NETWORK,LOCAL_FILE};
     private final static String TAG = "TORGISvc";
     private final static int TORGI_NOTIFICATION_ID = 1;
@@ -363,8 +364,11 @@ public class TorgiService extends Service {
                 intentShareFile.putExtra(Intent.EXTRA_STREAM,
                         FileProvider.getUriForFile(this, this.getApplicationContext().getPackageName() + ".geopackage.provider", file));
                 intentShareFile.putExtra(Intent.EXTRA_SUBJECT, file.getName());
-                intentShareFile.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
-                startActivity(Intent.createChooser(intentShareFile, getString(R.string.share)));
+                intentShareFile.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION|Intent.FLAG_ACTIVITY_NEW_TASK);
+                try {
+                    startActivity(intentShareFile);
+                } catch (ActivityNotFoundException ignore) {
+                }
             }
 
         }
@@ -508,20 +512,28 @@ public class TorgiService extends Service {
         if (operation != null) {
             if (operation instanceof GetObservations) {
                 GetObservations getObservations = (GetObservations) operation;
-                long start = getObservations.getStartTime();
-                long stop = getObservations.getStopTime();
+                long tempStart = getObservations.getStartTime();
+                long tempStop = getObservations.getStopTime();
+                if (tempStart < 0l)
+                    tempStart = System.currentTimeMillis() - 1000l * 10;
+                if (tempStop < tempStart)
+                    tempStop = System.currentTimeMillis();
+                if (tempStop - tempStart > MAX_SOS_RESPONSE_BLOCK)
+                    tempStop = tempStart + MAX_SOS_RESPONSE_BLOCK;
+                final long start = tempStart;
+                final long stop = tempStop;
                 if (geoPackageRecorder != null) {
-                    geoPackageRecorder.getGnssMeasurements(System.currentTimeMillis() - 1000l * 10l, System.currentTimeMillis(),new GeoPackageRetrievalListener() {
+                    geoPackageRecorder.getGnssMeasurements(start, stop, new GeoPackageRetrievalListener() {
                         @Override
-                        public void onGnssSatDataRetrieved(ArrayList<GeoPackageSatDataHelper> measurements) {
+                        public void onGnssSatDataRetrieved(ArrayList<GeoPackageSatDataHelper> points) {
                             Log.d(TAG, "onGnssSatDataRetrieved()");
-                            TorgiSOSBroadcastTransceiver.broadcast(TorgiService.this, SOSHelper.getObservationResult(measurements,null));
+                            TorgiSOSBroadcastTransceiver.broadcast(TorgiService.this,
+                                    SOSHelper.getObservationResult(points,geoPackageRecorder.getGPSObservationPointsBlocking(start,stop)));
                         }
 
                         @Override
                         public void onGnssGeoPtRetrieved(ArrayList<GeoPackageGPSPtHelper> measurements) {
-                            Log.d(TAG, "onGnssSatDataRetrieved()");
-                            TorgiSOSBroadcastTransceiver.broadcast(TorgiService.this, SOSHelper.getObservationResult(null,measurements));
+                            Log.d(TAG, "onGnssSatDataRetrieved() - should not be called in this case");
                         }
                     });
                 }

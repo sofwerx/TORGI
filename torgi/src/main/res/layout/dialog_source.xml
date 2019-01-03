@@ -52,7 +52,7 @@
             android:layout_toEndOf="@id/sourceImageNetwork"
             android:layout_alignParentTop="true"/>
 
-        <android.support.design.widget.TextInputLayout
+        <com.google.android.material.textfield.TextInputLayout
             android:id="@+id/sourceNetworkIPLayout"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
@@ -64,6 +64,6 @@
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:hint="@string/source_network_hint"/>
-        </android.support.design.widget.TextInputLayout>
+        </com.google.android.material.textfield.TextInputLayout>
     </RelativeLayout>
 </LinearLayout>

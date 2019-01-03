@@ -15,7 +15,6 @@ import android.util.Log;
 import android.view.MenuItem;
 import android.view.View;
 import android.widget.CheckBox;
-import android.widget.CompoundButton;
 import android.widget.TextView;
 import android.widget.Toast;
 import android.widget.Toolbar;
@@ -41,7 +40,6 @@ import org.sofwerx.torgi.gnss.DataPoint;
 import org.sofwerx.torgi.gnss.EWIndicators;
 import org.sofwerx.torgi.gnss.GNSSEWValues;
 import org.sofwerx.torgi.gnss.LatLng;
-import org.sofwerx.torgi.gnss.SatMeasurement;
 import org.sofwerx.torgi.listener.GnssMeasurementListener;
 import org.sofwerx.torgi.service.TorgiService;
 import org.sofwerx.torgi.util.PackageUtil;
@@ -49,11 +47,11 @@ import org.sofwerx.torgi.util.PackageUtil;
 import java.text.DecimalFormat;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
+import java.util.Date;
 
 public class MainActivity extends AbstractTORGIActivity implements GnssMeasurementListener {
-    private final static long MAX_CHART_UPDATE_RATE = 500l;
-    private long lastChartUpdate = Long.MIN_VALUE;
-    private float chartIndex = 0f;
+    private SimpleDateFormat timeFmt;
+    private SimpleDateFormat timeFmtEW;
     private final static String PREF_LAT = "lat";
     private final static String PREF_LNG = "lng";
     private final static String PREF_DUAL_APP_ASK = "dual";
@@ -63,27 +61,33 @@ public class MainActivity extends AbstractTORGIActivity implements GnssMeasureme
     private org.osmdroid.views.overlay.Marker currentOSM = null;
     private org.osmdroid.views.overlay.Polyline historyPolylineOSM = null;
     private LatLng current = null;
-    private CombinedChart chartEW = null;
-    private CombinedData chartEWData = null;
-    private CombinedChart chartIAW = null;
-    private CombinedData chartIAWData = null;
     private TextView textOverview,textConstellations,textLive;
     private CheckBox gpsOnly;
     private GNSSStatusView ewWarningView;
     private HeatmapOverlay overlayHeatmap = null;
+    private long startTime = Long.MAX_VALUE;
+    private long lastEntryEW = Long.MIN_VALUE;
+    private long lastEntryIAW = Long.MIN_VALUE;
+
+    //if constellations are present, but GPS is not one of them then this is the minimum risk level
+    private final static int DEFAULT_WARNING_LEVEL_NO_GPS_CONSTELLATION = 85;
 
     //Observed GNSS values
+    private CombinedChart chartEW = null;
+    private CombinedData chartEWData = null;
     private LineDataSet setCN0 = null;
     private BarDataSet setAGC = null;
 
     // likelihood of EW values
+    private CombinedChart chartIAW = null;
+    private CombinedData chartIAWData = null;
     private LineDataSet setRFI = null;
     private LineDataSet setCN0AGC = null;
     private LineDataSet setConstellation = null;
     private LineDataSet setFusedSpoof = null;
     private BarDataSet setFused = null;
-    private boolean gpsOnlyNagShown = false;
 
+    private boolean gpsOnlyNagShown = false;
     private boolean nagAboutDualInstalls = true;
 
     protected void onCreate(Bundle savedInstanceState) {
@@ -150,22 +154,6 @@ public class MainActivity extends AbstractTORGIActivity implements GnssMeasureme
         //osmMap.setTileSource(TileSourceFactory.USGS_SAT);
     }
 
-    /*private void switchInput() {
-        if (serviceBound && (torgiService != null)) {
-            TorgiService.InputSourceType source = torgiService.getInputType();
-            switch (source) {
-                case LOCAL:
-                    source = TorgiService.InputSourceType.NETWORK;
-                    break;
-
-                default:
-                    source = TorgiService.InputSourceType.LOCAL;
-            }
-            torgiService.start(source);
-            onSourceUpdated(source);
-        }
-    }*/
-
     public void onSourceUpdated(TorgiService.InputSourceType source) {
         switch (source) {
             case LOCAL:
@@ -193,6 +181,20 @@ public class MainActivity extends AbstractTORGIActivity implements GnssMeasureme
     @Override
     protected int getLayout() {
         return R.layout.activity_monitor;
+    }
+
+    /**
+     * Since the chart library doesn't like large values, this introduces a relative time
+     * @param time
+     * @return
+     */
+    private float getTimeIndexX(long time) {
+        if (startTime > System.currentTimeMillis())
+            startTime = System.currentTimeMillis();
+        if (time > startTime)
+            return (float)(time-startTime)/1000;
+        else
+            return 0f;
     }
 
     private void setupEWchart(Entry entryCNO, BarEntry entryAGC) {
@@ -236,6 +238,12 @@ public class MainActivity extends AbstractTORGIActivity implements GnssMeasureme
 
             XAxis xAxis = chartEW.getXAxis();
             xAxis.setPosition(XAxis.XAxisPosition.BOTH_SIDED);
+            xAxis.setGranularity(30f);
+            timeFmtEW = new SimpleDateFormat("HH:mm:ss");
+
+            xAxis.setEnabled(true);
+            xAxis.setValueFormatter((value, axis) -> timeFmtEW.format(new Date(startTime + (long) (value) * 1000l)));
+            xAxis.setTextColor(Color.WHITE);
 
             chartEWData = new CombinedData();
 
@@ -313,6 +321,11 @@ public class MainActivity extends AbstractTORGIActivity implements GnssMeasureme
 
             XAxis xAxis = chartIAW.getXAxis();
             xAxis.setPosition(XAxis.XAxisPosition.BOTH_SIDED);
+            xAxis.setGranularity(30f);
+            timeFmt = new SimpleDateFormat("HH:mm:ss");
+            xAxis.setEnabled(true);
+            xAxis.setValueFormatter((value, axis) -> timeFmt.format(new Date(startTime + (long) (value) * 1000l)));
+            xAxis.setTextColor(Color.WHITE);
 
             chartIAWData = new CombinedData();
             generateIAWRFILineData(entriesRFI);
@@ -506,14 +519,11 @@ public class MainActivity extends AbstractTORGIActivity implements GnssMeasureme
     }
 
     @Override
-    public void onSatStatusUpdated(final GnssStatus status) {
-        //ignore
-    }
+    public void onSatStatusUpdated(final GnssStatus status) {/* ignore */}
 
     @Override
     public void onEWDataProcessed(DataPoint dp,EWIndicators indicators) {
         if (dp != null) {
-            lastChartUpdate = System.currentTimeMillis();
             ArrayList<Constellation> constellations = dp.getConstellationsRepresented();
             final int constCount;
             final boolean gpsWarning;
@@ -549,70 +559,82 @@ public class MainActivity extends AbstractTORGIActivity implements GnssMeasureme
                 }
             });
             GNSSEWValues avg = dp.getAverageMeasurements();
+            long time = dp.getSpaceTime().getTime();
             if (avg != null)
-                addEWChartEntry(dp.getSpaceTime().getTime(), avg);
+                addEWChartEntry(time, avg);
+            if (time < lastEntryIAW) //skip out-of-order entries
+                return;
             if (indicators != null) {
-                addIAWChartEntry(dp.getSpaceTime().getTime(), indicators);
+                addIAWChartEntry(time, indicators);
                 float fusedRisk = indicators.getFusedEWRisk();
                 if (!Float.isNaN(fusedRisk)) {
                     final int risk = (int) (100f * fusedRisk);
-                    runOnUiThread(() -> ewWarningView.setWarnPercent(risk));
+                    if ((risk < DEFAULT_WARNING_LEVEL_NO_GPS_CONSTELLATION) && (constellations == null) && gpsWarning)
+                        runOnUiThread(() -> ewWarningView.setWarnPercent(DEFAULT_WARNING_LEVEL_NO_GPS_CONSTELLATION));
+                    else
+                        runOnUiThread(() -> ewWarningView.setWarnPercent(risk));
                 }
             }
         }
     }
 
     @Override
-    public void onGnssMeasurementReceived(GnssMeasurementsEvent event) {
-        //ignoring the unprocessed data
-    }
+    public void onGnssMeasurementReceived(GnssMeasurementsEvent event) {/* ignoring the unprocessed data */}
 
     private void addEWChartEntry(final long time, final GNSSEWValues values) {
         if ((time > 0l) && (values != null)) {
-            runOnUiThread(() -> {
-                Log.d(TAG,"Chart update #"+(int)chartIndex);
-                Entry entryCN0 = null;
-                BarEntry entryAGC = null;
-                boolean updatedAGC = false;
-                boolean updatedCN0 = false;
-                if (!Double.isNaN(values.getAgc())) {
-                    entryAGC = new BarEntry(chartIndex, (float) values.getAgc());
-                    if (setAGC != null) {
-                        setAGC.addEntry(entryAGC);
-                        if (setAGC.getValues().size() > TorgiService.MAX_HISTORY_LENGTH)
-                            setAGC.removeFirst();
-                        setAGC.notifyDataSetChanged();
-                    }
-                    updatedAGC = true;
-                }
-                if (!Float.isNaN(values.getCn0())) {
-                    entryCN0 = new Entry(chartIndex,values.getCn0());
+            if (time > lastEntryEW)
+                lastEntryEW = time;
+            else //skip out-of-order entries
+                return;
+            final Entry entryCN0;
+            final BarEntry entryAGC;
+
+            float x = getTimeIndexX(time);
+            if (Float.isNaN(values.getCn0()))
+                entryCN0 = new Entry(x,0f);
+            else
+                entryCN0 = new Entry(x,values.getCn0());
+            if (Double.isNaN(values.getAgc()))
+                entryAGC = new BarEntry(x, 0f);
+            else
+                entryAGC = new BarEntry(x, (float) values.getAgc());
+            if (chartEW == null) {
+                runOnUiThread(() -> {
+                    setupEWchart(entryCN0, entryAGC);
+                });
+            } else {
+                chartEW.post(() -> {
                     if (setCN0 != null) {
                         setCN0.addEntry(entryCN0);
                         if (setCN0.getValues().size() > TorgiService.MAX_HISTORY_LENGTH)
                             setCN0.removeFirst();
                         setCN0.notifyDataSetChanged();
                     }
-                    updatedCN0 = true;
-                }
-                if ((chartEW == null) && updatedAGC && updatedCN0)
-                    setupEWchart(entryCN0,entryAGC);
-                if (updatedAGC || updatedCN0) {
+                    if (setAGC != null) {
+                        setAGC.addEntry(entryAGC);
+                        if (setAGC.getValues().size() > TorgiService.MAX_HISTORY_LENGTH)
+                            setAGC.removeFirst();
+                        setAGC.notifyDataSetChanged();
+                    }
+
                     if (chartEWData != null) {
                         chartEWData.notifyDataChanged();
                         chartEW.notifyDataSetChanged();
                         chartEW.invalidate();
-                        chartIndex += 1f;
                     }
-                }
-            });
+                });
+            }
         }
     }
 
     private void addIAWChartEntry(final long time, final EWIndicators indicators) {
         if ((time > 0l) && (indicators != null)) {
+            if (time > lastEntryIAW) //skip out-of-order entries
+                lastEntryIAW = time;
+            else
+                return;
             runOnUiThread(() -> {
-                Log.d(TAG,"Chart update #"+(int)chartIndex);
                 Entry entryRFI = null;
                 Entry entryCN0AGC = null;
                 Entry entryConstellation = null;
@@ -623,18 +645,8 @@ public class MainActivity extends AbstractTORGIActivity implements GnssMeasureme
                 boolean updatedConstellation = false;
                 boolean updatedFusedSpoof = false;
                 boolean updatedFused = false;
-                if (!Float.isNaN(indicators.getFusedEWRisk())) {
-                    entryFused = new BarEntry(chartIndex, indicators.getFusedEWRisk());
-                    if (setFused != null) {
-                        setFused.addEntry(entryFused);
-                        if (setFused.getValues().size() > TorgiService.MAX_HISTORY_LENGTH)
-                            setFused.removeFirst();
-                        setFused.notifyDataSetChanged();
-                    }
-                    updatedFused = true;
-                }
                 if (!Float.isNaN(indicators.getLikelihoodRFI())) {
-                    entryRFI = new Entry(chartIndex,indicators.getLikelihoodRFI());
+                    entryRFI = new Entry(getTimeIndexX(time),indicators.getLikelihoodRFI());
                     if (setRFI != null) {
                         setRFI.addEntry(entryRFI);
                         if (setRFI.getValues().size() > TorgiService.MAX_HISTORY_LENGTH)
@@ -644,7 +656,7 @@ public class MainActivity extends AbstractTORGIActivity implements GnssMeasureme
                     updatedRFI = true;
                 }
                 if (!Float.isNaN(indicators.getLikelihoodRSpoofCN0vsAGC())) {
-                    entryCN0AGC = new Entry(chartIndex,indicators.getLikelihoodRSpoofCN0vsAGC());
+                    entryCN0AGC = new Entry(getTimeIndexX(time),indicators.getLikelihoodRSpoofCN0vsAGC());
                     if (setCN0AGC != null) {
                         setCN0AGC.addEntry(entryCN0AGC);
                         if (setCN0AGC.getValues().size() > TorgiService.MAX_HISTORY_LENGTH)
@@ -654,7 +666,7 @@ public class MainActivity extends AbstractTORGIActivity implements GnssMeasureme
                     updatedCN0AGC = true;
                 }
                 if (!Float.isNaN(indicators.getLikelihoodRSpoofConstellationDisparity())) {
-                    entryConstellation = new Entry(chartIndex,indicators.getLikelihoodRSpoofConstellationDisparity());
+                    entryConstellation = new Entry(getTimeIndexX(time),indicators.getLikelihoodRSpoofConstellationDisparity());
                     if (setConstellation != null) {
                         setConstellation.addEntry(entryConstellation);
                         if (setConstellation.getValues().size() > TorgiService.MAX_HISTORY_LENGTH)
@@ -664,7 +676,7 @@ public class MainActivity extends AbstractTORGIActivity implements GnssMeasureme
                     updatedConstellation = true;
                 }
                 if (!Float.isNaN(indicators.getFusedLikelihoodOfSpoofing())) {
-                    entryFusedSpoof = new Entry(chartIndex,indicators.getFusedLikelihoodOfSpoofing());
+                    entryFusedSpoof = new Entry(getTimeIndexX(time),indicators.getFusedLikelihoodOfSpoofing());
                     if (setFusedSpoof != null) {
                         setFusedSpoof.addEntry(entryFusedSpoof);
                         if (setFusedSpoof.getValues().size() > TorgiService.MAX_HISTORY_LENGTH)
@@ -673,14 +685,24 @@ public class MainActivity extends AbstractTORGIActivity implements GnssMeasureme
                     }
                     updatedFusedSpoof = true;
                 }
+                if (!Float.isNaN(indicators.getFusedEWRisk())) {
+                    entryFused = new BarEntry(getTimeIndexX(time), indicators.getFusedEWRisk());
+                    if (setFused != null) {
+                        setFused.addEntry(entryFused);
+                        if (setFused.getValues().size() > TorgiService.MAX_HISTORY_LENGTH)
+                            setFused.removeFirst();
+                        setFused.notifyDataSetChanged();
+                    }
+                    updatedFused = true;
+                }
                 if ((chartIAW == null) && updatedRFI && updatedCN0AGC && updatedConstellation && updatedFusedSpoof && updatedFused)
-                    setupIAWchart(entryRFI,entryCN0AGC,entryConstellation,entryFusedSpoof,entryFused);
+                    setupIAWchart(entryRFI, entryCN0AGC, entryConstellation, entryFusedSpoof, entryFused);
                 if (updatedRFI || updatedCN0AGC || updatedConstellation || updatedFusedSpoof || updatedFused) {
                     if (chartIAWData != null) {
+                        Log.d("TORGIC","Added IAW entry");
                         chartIAWData.notifyDataChanged();
                         chartIAW.notifyDataSetChanged();
                         chartIAW.invalidate();
-                        chartIndex += 1f;
                     }
                 }
             });
@@ -709,9 +731,7 @@ public class MainActivity extends AbstractTORGIActivity implements GnssMeasureme
     }
 
     @Override
-    public void onProviderChanged(final String provider, final boolean enabled) {
-        //ignore
-    }
+    public void onProviderChanged(final String provider, final boolean enabled) {/* ignore provider changes */}
 
     @Override
     public void onHeatmapChange(final Heatmap heatmap) {

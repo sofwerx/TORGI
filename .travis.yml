@@ -5,6 +5,7 @@ language: bash
 script:
 - make
 - ls -la
+- find . -name '*.apk'
 - cp torgi-logger-debug.apk torgi-logger-debug_${TRAVIS_TAG}.apk
 - cp torgi-logger-release-unsigned.apk torgi-logger-release-unsigned_${TRAVIS_TAG}.apk
 - cp torgi-viewer-debug.apk torgi-viewer-debug_${TRAVIS_TAG}.apk

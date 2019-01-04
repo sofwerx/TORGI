@@ -17,6 +17,7 @@ branches:
   only:
   - master
   - travis-only
+  - scottlandis
   - "/^v\\d.*$/"
 deploy:
   provider: releases

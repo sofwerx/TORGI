@@ -63,7 +63,6 @@ import org.sofwerx.torgi.util.CallsignUtil;
 
 import java.io.File;
 import java.util.ArrayList;
-import java.util.prefs.PreferenceChangeListener;
 
 import static org.sofwerx.torgi.service.TorgiService.InputSourceType.LOCAL;
 import static org.sofwerx.torgi.service.TorgiService.InputSourceType.LOCAL_FILE;
@@ -217,6 +216,9 @@ public class TorgiService extends Service implements SosMessageListener {
         callsign = callsign + " TORGI";
         String callsignCondensed = callsign.replace(' ','-').toLowerCase();
         sosSensor = new SosSensor(callsign,callsignCondensed,"TORGI","Tactical Observation of RF and GNSS Interference sensor");
+        sosSensor.setAssignedProcedure(prefs.getString(Config.PREFS_SOS_ASSIGNED_PROCEDURE,null));
+        sosSensor.setAssignedOffering(prefs.getString(Config.PREFS_SOS_ASSIGNED_OFFERING,null));
+        sosSensor.setAssignedTemplate(prefs.getString(Config.PREFS_SOS_ASSIGNED_TEMPLATE,null));
         sosMeasurementTime = new SensorMeasurementTime();
         sosMeasurementLocation = new SensorMeasurementLocation();
         sosMeasurementCn0 = new SensorMeasurement(new SensorResultTemplateField("cno",SosIpcTransceiver.SOFWERX_LINK_PLACEHOLDER,"dB-Hz"));
@@ -230,10 +232,27 @@ public class TorgiService extends Service implements SosMessageListener {
         sosService = new SosService(this, sosSensor,prefs.getString(Config.PREFS_SOS_URL,null),prefs.getBoolean(Config.PREFS_SEND_TO_SOS,true));
         prefChangeListener = (prefs1, key) -> {
             if (sosService != null) {
-                if (Config.PREFS_SEND_TO_SOS.equalsIgnoreCase(key))
-                    sosService.setOn(prefs.getBoolean(key,true));
-                else if (Config.PREFS_SOS_URL.equalsIgnoreCase(key))
-                    sosService.setSosServerUrl(prefs.getString(key,null));
+                boolean resetSosSensor = false;
+                if (Config.PREFS_SEND_TO_SOS.equalsIgnoreCase(key)) {
+                    sosService.setOn(prefs.getBoolean(key, true));
+                    resetSosSensor = true;
+                } else if (Config.PREFS_SOS_URL.equalsIgnoreCase(key)) {
+                    sosService.setSosServerUrl(prefs.getString(key, null));
+                    resetSosSensor = true;
+                } else if (Config.PREFS_UUID.equalsIgnoreCase(key))
+                    resetSosSensor = true;
+                if (resetSosSensor) {
+                    SharedPreferences.Editor edit = prefs1.edit();
+                    if (sosSensor != null) {
+                        sosSensor.setAssignedProcedure(null);
+                        sosSensor.setAssignedOffering(null);
+                        sosSensor.setAssignedTemplate(null);
+                    }
+                    edit.remove(Config.PREFS_SOS_ASSIGNED_PROCEDURE);
+                    edit.remove(Config.PREFS_SOS_ASSIGNED_OFFERING);
+                    edit.remove(Config.PREFS_SOS_ASSIGNED_TEMPLATE);
+                    edit.apply();
+                }
             }
         };
         prefs.registerOnSharedPreferenceChangeListener(prefChangeListener);

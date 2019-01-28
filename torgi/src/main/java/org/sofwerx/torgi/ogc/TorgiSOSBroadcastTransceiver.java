@@ -6,6 +6,7 @@ import android.util.Log;
 import org.json.JSONException;
 import org.json.JSONObject;
 import org.sofwerx.torgi.BuildConfig;
+import org.sofwerx.torgi.Config;
 import org.sofwerx.torgi.gnss.helper.GeoPackageSatDataHelper;
 import org.sofwerx.torgi.ogc.sos.AbstractOperation;
 import org.sofwerx.torgi.ogc.sos.DescribeSensor;
@@ -40,7 +41,8 @@ public class TorgiSOSBroadcastTransceiver extends AbstractSOSBroadcastTransceive
             Log.e(TAG,"Emtpy SOS message received");
         else {
             Log.d(TAG,"Broadcast received: "+input);
-            parse(input);
+            if (Config.isBroadcastSupported())
+                parse(input);
         }
     }
 

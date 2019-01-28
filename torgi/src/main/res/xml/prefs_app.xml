@@ -1,11 +1,36 @@
 <PreferenceScreen xmlns:android="http://schemas.android.com/apk/res/android">
     <PreferenceCategory
-        android:title="@string/pref_category_logging">
+        android:title="@string/pref_category_connectivity">
+
+        <CheckBoxPreference
+            android:key="broadcast"
+            android:title="@string/pref_broadcast"
+            android:summary="@string/pref_broadcast_narrative"
+            android:defaultValue="true"/>
 
         <EditTextPreference
             android:key="callsign"
             android:title="@string/device_callsign"
             android:summary="@string/device_callsign_narrative" />
+
+        <CheckBoxPreference
+            android:key="sendtosos"
+            android:title="Send to network SOS"
+            android:summary="Sends sensor reports to an OGC Sensor Observation Service (SOS) server on a network"
+            android:defaultValue="true"
+            android:dependency="broadcast"/>
+
+        <EditTextPreference
+            android:key="sosurl"
+            android:title="SOS URL"
+            android:summary="The network address of the SOS server"
+            android:hint="http://example.com/sensorhub/sos"
+            android:dependency="sendtosos"/>
+
+    </PreferenceCategory>
+
+    <PreferenceCategory
+        android:title="@string/pref_category_logging">
 
         <CheckBoxPreference
             android:key="bigdata"

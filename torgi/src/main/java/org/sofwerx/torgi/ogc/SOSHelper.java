@@ -123,7 +123,7 @@ public class SOSHelper {
                 if (max < tempMax)
                     tempMax = max;
                 for (int i=0;i<tempMax;i++) {
-                    obs.put(getObservationResult(points.get(i)));
+                    obs.put(getObservationResult(points.get(i), Double.NaN));
                 }
                 obj.put("observations", obs);
             }
@@ -135,10 +135,14 @@ public class SOSHelper {
     }
 
     public static String getObservationResult(ArrayList<GeoPackageSatDataHelper> points,ArrayList<GeoPackageGPSPtHelper> gpsMeasurements) {
-        return getObservationResult(points, gpsMeasurements,Integer.MAX_VALUE);
+        return getObservationResult(points, gpsMeasurements,Integer.MAX_VALUE, Double.NaN);
     }
 
-    public static String getObservationResult(ArrayList<GeoPackageSatDataHelper> points, ArrayList<GeoPackageGPSPtHelper> gpsMeasurements, int max) {
+    public static String getObservationResult(ArrayList<GeoPackageSatDataHelper> points,ArrayList<GeoPackageGPSPtHelper> gpsMeasurements, double ewRisk) {
+        return getObservationResult(points, gpsMeasurements,Integer.MAX_VALUE, ewRisk);
+    }
+
+    public static String getObservationResult(ArrayList<GeoPackageSatDataHelper> points, ArrayList<GeoPackageGPSPtHelper> gpsMeasurements, int max, double ewRisk) {
         //TODO this needs to be changed to better conform with OGC standards
         JSONObject obj = new JSONObject();
 
@@ -152,7 +156,7 @@ public class SOSHelper {
                 if (max < tempMax)
                     tempMax = max;
                 for (int i=0;i<tempMax;i++) {
-                    obs.put(getObservationResult(gpsMeasurements.get(i)));
+                    obs.put(getObservationResult(gpsMeasurements.get(i),ewRisk));
                 }
                 tempMax = points.size();
                 if (max < tempMax)
@@ -222,7 +226,7 @@ public class SOSHelper {
         return obj;
     }
 
-    private static JSONObject getObservationResult(GeoPackageGPSPtHelper satData) {
+    private static JSONObject getObservationResult(GeoPackageGPSPtHelper satData, double ewRisk) {
         JSONObject obj = new JSONObject();
 
         try {
@@ -230,6 +234,12 @@ public class SOSHelper {
             obj.put("procedure",PROCEEDURE_GNSS_LOCATION);
             String time = formatTime(satData.getTime());
             obj.put("phenomenonTime",time);
+            //temp reporting of assessed EW risk
+            if (!Double.isNaN(ewRisk)) {
+                JSONObject objResult = new JSONObject();
+                objResult.put("value",ewRisk);
+                obj.put("result",objResult);
+            }
             obj.put("resultTime",time);
             JSONObject foi = new JSONObject();
             JSONObject foiName = new JSONObject();

@@ -32,9 +32,12 @@
     <!--Preferences-->
     <string name="action_settings">Settings</string>
     <string name="pref_category_logging">Logging</string>
+    <string name="pref_category_connectivity">Connectivity</string>
+    <string name="pref_broadcast">Share with other apps</string>
+    <string name="pref_broadcast_narrative">Automatically respond to other apps with information about EW risk changes.</string>
     <string name="pref_torgi_dir">Saved file directory</string>
     <string name="pref_torgi_dir_narrative">TORGI will save files in this directory.</string>
-    <string name="title_activity_b">BActivity</string>
+    <string name="title_activity_b">Activity</string>
     <string name="device_callsign">Device Callsign</string>
     <string name="device_callsign_narrative">How this device identifies itself on a network</string>
     <string name="gps_only">GPS Constellation Only</string>

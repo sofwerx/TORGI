@@ -5,6 +5,8 @@ import android.content.SharedPreferences;
 import android.os.Environment;
 import android.preference.PreferenceManager;
 
+import org.sofwerx.torgi.util.CallsignUtil;
+
 import java.io.File;
 import java.util.UUID;
 
@@ -16,10 +18,14 @@ public class Config {
     public final static String PREFS_LAST_SOS_SERVER_IP = "sosip";
     public final static String PREFS_REMOTE_IP = "remoteip";
     public final static String PREFS_GPS_ONLY = "gpsonly";
+    public final static String PREFS_BROADCAST = "broadcast";
+    public final static String PREFS_SEND_TO_SOS = "sendtosos";
+    public final static String PREFS_SOS_URL = "sosurl";
 
     private static Config instance = null;
     private String savedDir = null;
     private boolean processEWonboard = false;
+    private static boolean broadcast = true;
     private SharedPreferences prefs = null;
     private String uuid = null;
     private Context context;
@@ -30,6 +36,12 @@ public class Config {
         this.context = context;
         prefs = PreferenceManager.getDefaultSharedPreferences(context);
         processEWonboard = prefs.getBoolean(PREFS_PROCESS_EW,false);
+        broadcast = prefs.getBoolean(PREFS_BROADCAST,true);
+        if (prefs.getString(PREFS_UUID,null) == null) {
+            SharedPreferences.Editor editor = prefs.edit();
+            editor.putString(PREFS_UUID, CallsignUtil.getRandomCallsign());
+            editor.apply();
+        }
     }
 
     public void loadPrefs() {
@@ -128,5 +140,13 @@ public class Config {
             else
                 edit.putString(PREFS_SAVE_DIR,savedDir);
         edit.commit();
+    }
+
+    /**
+     * Is the app allowed to respond back to requests from other apps via IPC for sensor data
+     * @return
+     */
+    public static boolean isBroadcastSupported() {
+        return broadcast;
     }
 }

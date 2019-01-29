@@ -51,16 +51,16 @@ RUN sed -i -e 's/# en_US.UTF-8 UTF-8/en_US.UTF-8 UTF-8/' /etc/locale.gen && \
 
 ENV LANG=en_US.UTF-8 LC_ALL=en_US.UTF-8
 
-RUN git clone https://github.com/ngageoint/geopackage-android /geopackage-android
-WORKDIR /geopackage-android
-RUN sed -i -e 's/^android {/android {\n lintOptions {\n    abortOnError false\n  }/' geopackage-sdk/build.gradle
-RUN ./gradlew build
+#RUN git clone https://github.com/ngageoint/geopackage-android /geopackage-android
+#WORKDIR /geopackage-android
+#RUN sed -i -e 's/^android {/android {\n lintOptions {\n    abortOnError false\n  }/' geopackage-sdk/build.gradle
+#RUN ./gradlew build
 
 WORKDIR /torgi
 
 COPY . .
-RUN ln -nsf /geopackage-android/geopackage-sdk geopackage-sdk
-RUN sed -i -e 's/^android {/android {\n lintOptions {\n    abortOnError false\n  }/' torgi/build.gradle
+#RUN ln -nsf /geopackage-android/geopackage-sdk geopackage-sdk
+#RUN sed -i -e 's/^android {/android {\n lintOptions {\n    abortOnError false\n  }/' torgi/build.gradle
 RUN ./gradlew build
 
 CMD sleep 3600

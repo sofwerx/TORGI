@@ -11,10 +11,7 @@
         android:id="@+id/aboutLogo"
         android:layout_width="match_parent"
         android:layout_height="50dp"
-        android:src="@drawable/ic_notification_torgi"
-        app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@id/textTorgiFull" />
+        android:src="@drawable/ic_notification_torgi" />
 
     <TextView
         android:layout_width="match_parent"

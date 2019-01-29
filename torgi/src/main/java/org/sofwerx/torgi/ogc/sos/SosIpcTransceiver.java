@@ -181,7 +181,7 @@ public class SosIpcTransceiver extends BroadcastReceiver {
     }
 
     /**
-     * Consumes ISO 8601 formated text and translates into UNIX time
+     * Consumes ISO 8601 formatted text and translates into UNIX time
      * @param time unix time (or Long.MIN_VALUE if could not be parsed)
      * @return
      */

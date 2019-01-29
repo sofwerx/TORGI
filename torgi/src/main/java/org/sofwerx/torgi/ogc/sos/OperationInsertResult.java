@@ -100,7 +100,7 @@ public class OperationInsertResult extends AbstractSosOperation {
         for (SensorMeasurement measurement:measurements) {
             if ((measurement instanceof SensorMeasurementLocation) || (measurement instanceof SensorMeasurementTime))
                 continue;
-            if (measurement.value == null)
+            if (measurement.getValue() == null)
                 return false;
         }
         return true;

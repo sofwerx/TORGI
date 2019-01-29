@@ -9,7 +9,6 @@ import android.app.Service;
 import android.content.ActivityNotFoundException;
 import android.content.Context;
 import android.content.Intent;
-import android.content.IntentFilter;
 import android.content.SharedPreferences;
 import android.content.pm.PackageManager;
 import android.location.GnssMeasurementsEvent;
@@ -40,24 +39,16 @@ import org.sofwerx.torgi.listener.GeoPackageRetrievalListener;
 import org.sofwerx.torgi.listener.GnssMeasurementListener;
 import org.sofwerx.torgi.R;
 import org.sofwerx.torgi.listener.SensorListener;
-import org.sofwerx.torgi.ogc.AbstractSOSBroadcastTransceiver;
-import org.sofwerx.torgi.ogc.LiteSOSClient;
-import org.sofwerx.torgi.ogc.LiteWebServer;
-import org.sofwerx.torgi.ogc.SOSHelper;
-import org.sofwerx.torgi.ogc.TorgiSOSBroadcastTransceiver;
-import org.sofwerx.torgi.ogc.sos.AbstractOperation;
-import org.sofwerx.torgi.ogc.sos.DescribeSensor;
-import org.sofwerx.torgi.ogc.sos.GetCapabilities;
-import org.sofwerx.torgi.ogc.sos.GetObservations;
-import org.sofwerx.torgi.ogc.sosv2.AbstractSosOperation;
-import org.sofwerx.torgi.ogc.sosv2.SensorMeasurement;
-import org.sofwerx.torgi.ogc.sosv2.SensorMeasurementLocation;
-import org.sofwerx.torgi.ogc.sosv2.SensorMeasurementTime;
-import org.sofwerx.torgi.ogc.sosv2.SensorResultTemplateField;
-import org.sofwerx.torgi.ogc.sosv2.SosIpcTransceiver;
-import org.sofwerx.torgi.ogc.sosv2.SosMessageListener;
-import org.sofwerx.torgi.ogc.sosv2.SosSensor;
-import org.sofwerx.torgi.ogc.sosv2.SosService;
+import org.sofwerx.torgi.ogc.sos.AbstractSosOperation;
+import org.sofwerx.torgi.ogc.sos.SensorMeasurement;
+import org.sofwerx.torgi.ogc.sos.SensorMeasurementLocation;
+import org.sofwerx.torgi.ogc.sos.SensorMeasurementTime;
+import org.sofwerx.torgi.ogc.sos.SensorResultTemplateField;
+import org.sofwerx.torgi.ogc.sos.SosIpcTransceiver;
+import org.sofwerx.torgi.ogc.sos.SosMessageListener;
+import org.sofwerx.torgi.ogc.sos.SosSensor;
+import org.sofwerx.torgi.ogc.sos.SosService;
+import org.sofwerx.torgi.ui.FailureActivity;
 import org.sofwerx.torgi.ui.Heatmap;
 import org.sofwerx.torgi.util.CallsignUtil;
 
@@ -66,7 +57,6 @@ import java.util.ArrayList;
 
 import static org.sofwerx.torgi.service.TorgiService.InputSourceType.LOCAL;
 import static org.sofwerx.torgi.service.TorgiService.InputSourceType.LOCAL_FILE;
-import static org.sofwerx.torgi.service.TorgiService.InputSourceType.NETWORK;
 
 /**
  * Torgi service handles getting information from the GPS receiver (and eventually accepting data
@@ -74,8 +64,7 @@ import static org.sofwerx.torgi.service.TorgiService.InputSourceType.NETWORK;
  * this info available to any listening UI element.
  */
 public class TorgiService extends Service implements SosMessageListener {
-    private final static long MAX_SOS_RESPONSE_BLOCK = 1000l * 60l * 15l; //the maximum size (in milliseconds) of a block of time that the SOS service should return
-    public enum InputSourceType {LOCAL,NETWORK,LOCAL_FILE};
+    public enum InputSourceType {LOCAL,LOCAL_FILE};
     private final static String TAG = "TORGISvc";
     private final static int TORGI_NOTIFICATION_ID = 1;
     private final static int TORGI_WEB_SERVER_NOTIFICATION_ID = 2;
@@ -90,9 +79,6 @@ public class TorgiService extends Service implements SosMessageListener {
     private Location currentLocation = null;
     private ArrayList<LatLng> history = null;
     public final static int MAX_HISTORY_LENGTH = 50;
-    private TorgiSOSBroadcastTransceiver sosBroadcastTransceiver = null;
-    private LiteSOSClient sosClient = null;
-    private LiteWebServer sosWebServerV1 = null;
     private SosService sosService = null;
     private InputSourceType inputSourceType = LOCAL;
     private boolean didRemoteConnectionNotification = false;
@@ -100,6 +86,9 @@ public class TorgiService extends Service implements SosMessageListener {
     private SharedPreferences.OnSharedPreferenceChangeListener prefChangeListener;
     private final static long SOS_REPORT_RATE = 1000l*10l;
     private long nextSosReportTime = Long.MIN_VALUE;
+    private long firstGpsAcqTime = Long.MIN_VALUE;
+    private final static long TIME_TO_WAIT_FOR_GNSS_RAW_BEFORE_FAILURE = 1000l * 15l; //time to wait between first location measurement received and considering this device does not likely support raw GNSS collection
+    private boolean gnssRawSupportKnown = false;
 
     public void setListener(GnssMeasurementListener listener) {
         this.listener = listener;
@@ -164,35 +153,9 @@ public class TorgiService extends Service implements SosMessageListener {
             } else
                 gnssMeasurementService.clear();
             SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(getApplicationContext());
-            if (inputSourceType == LOCAL) {
-                if (prefs.getBoolean(PREFS_BIG_DATA, true))
-                    startSensorService();
-                if (sosWebServerV1 == null)
-                    sosWebServerV1 = new LiteWebServer(this);
-                if (sosClient != null) {
-                    sosClient.shutdown();
-                    sosClient = null;
-                }
-                setForeground();
-            } else {
-                if (sosWebServerV1 != null) {
-                    sosWebServerV1.stop();
-                    sosWebServerV1 = null;
-                    NotificationManager notificationManager = getSystemService(NotificationManager.class);
-                    notificationManager.cancel(TORGI_WEB_SERVER_NOTIFICATION_ID);
-                }
-                unregisterLocalSensors();
-                if (inputSourceType == NETWORK) {
-                    if (sosClient == null)
-                        sosClient = new LiteSOSClient(this);
-                    String serverIP = prefs.getString(Config.PREFS_LAST_SOS_SERVER_IP,null);
-                    //TODO if (serverIP != null) {
-                    //    sosClient.setIP(serverIP);
-                        sosClient.start();
-                    //}
-                    setForeground();
-                }
-            }
+            if (prefs.getBoolean(PREFS_BIG_DATA, true))
+                startSensorService();
+            setForeground();
             Heatmap.clear();
             setupSosService();
         }
@@ -229,18 +192,20 @@ public class TorgiService extends Service implements SosMessageListener {
         sosSensor.addMeasurement(sosMeasurementCn0);
         sosSensor.addMeasurement(sosMeasurementAgc);
         sosSensor.addMeasurement(sosMeasurementRisk);
-        sosService = new SosService(this, sosSensor,prefs.getString(Config.PREFS_SOS_URL,null),prefs.getBoolean(Config.PREFS_SEND_TO_SOS,true));
+        sosService = new SosService(this, sosSensor,prefs.getString(Config.PREFS_SOS_URL,null), prefs.getBoolean(Config.PREFS_BROADCAST,true) || prefs.getBoolean(Config.PREFS_SEND_TO_SOS,true));
         prefChangeListener = (prefs1, key) -> {
             if (sosService != null) {
                 boolean resetSosSensor = false;
                 if (Config.PREFS_SEND_TO_SOS.equalsIgnoreCase(key)) {
-                    sosService.setOn(prefs.getBoolean(key, true));
+                    sosService.setOn(prefs1.getBoolean(key, true));
                     resetSosSensor = true;
                 } else if (Config.PREFS_SOS_URL.equalsIgnoreCase(key)) {
-                    sosService.setSosServerUrl(prefs.getString(key, null));
+                    sosService.setSosServerUrl(prefs1.getString(key, null));
                     resetSosSensor = true;
                 } else if (Config.PREFS_UUID.equalsIgnoreCase(key))
                     resetSosSensor = true;
+                else if (Config.PREFS_BROADCAST.equalsIgnoreCase(key) && (sosService != null))
+                    sosService.setIpcBroadcast(prefs1.getBoolean(key,true));
                 if (resetSosSensor) {
                     SharedPreferences.Editor edit = prefs1.edit();
                     if (sosSensor != null) {
@@ -256,10 +221,6 @@ public class TorgiService extends Service implements SosMessageListener {
             }
         };
         prefs.registerOnSharedPreferenceChangeListener(prefChangeListener);
-    }
-
-    public LiteSOSClient getSosClient() {
-        return sosClient;
     }
 
     public InputSourceType getInputType() {
@@ -299,6 +260,7 @@ public class TorgiService extends Service implements SosMessageListener {
 
     private final GnssMeasurementsEvent.Callback measurementListener = new GnssMeasurementsEvent.Callback() {
         public void onGnssMeasurementsReceived(GnssMeasurementsEvent event) {
+            gnssRawSupportKnown = true;
             if (inputSourceType == LOCAL) {
                 if (geoPackageRecorder != null)
                     geoPackageRecorder.onGnssMeasurementsReceived(event);
@@ -371,9 +333,19 @@ public class TorgiService extends Service implements SosMessageListener {
 
         public void onStatusChanged(final String provider, int status, Bundle extras) {}
 
+        private boolean hasGnssRawFailureNagLaunched = false;
         public void onLocationChanged(final Location loc) {
-            if (inputSourceType == LOCAL)
+            if (inputSourceType == LOCAL) {
                 updateLocation(loc);
+                if (!gnssRawSupportKnown && !hasGnssRawFailureNagLaunched) {
+                    if (firstGpsAcqTime < 0l)
+                        firstGpsAcqTime = System.currentTimeMillis();
+                    else if (System.currentTimeMillis() > firstGpsAcqTime + TIME_TO_WAIT_FOR_GNSS_RAW_BEFORE_FAILURE) {
+                        hasGnssRawFailureNagLaunched = true;
+                        startActivity(new Intent(TorgiService.this,FailureActivity.class));
+                    }
+                }
+            }
         }
     };
 
@@ -400,9 +372,6 @@ public class TorgiService extends Service implements SosMessageListener {
         InputSourceType[] sources = InputSourceType.values();
         if ((inputModeIndex >= 0) && (inputModeIndex < sources.length))
             inputSourceType = sources[inputModeIndex];
-        sosBroadcastTransceiver = new TorgiSOSBroadcastTransceiver(this);
-        IntentFilter intentFilter = new IntentFilter(AbstractSOSBroadcastTransceiver.ACTION_SOS);
-        registerReceiver(sosBroadcastTransceiver, intentFilter);
     }
 
     @Override
@@ -420,24 +389,12 @@ public class TorgiService extends Service implements SosMessageListener {
                 locMgr.removeUpdates(locListener);
             locMgr = null;
         }
-        if (sosWebServerV1 != null) {
-            sosWebServerV1.stop();
-            sosWebServerV1 = null;
-        }
         if (sosService != null) {
             sosService.shutdown();
             sosService = null;
         }
         NotificationManager notificationManager = getSystemService(NotificationManager.class);
-        notificationManager.cancel(TORGI_WEB_SERVER_NOTIFICATION_ID);
-        if (sosBroadcastTransceiver != null) {
-            try {
-                unregisterReceiver(sosBroadcastTransceiver);
-            } catch (Exception e) {
-                e.printStackTrace();
-            }
-            sosBroadcastTransceiver = null;
-        }
+        notificationManager.cancelAll();
         unregisterLocalSensors();
         if (gnssMeasurementService != null) {
             gnssMeasurementService.shutdown();
@@ -508,11 +465,6 @@ public class TorgiService extends Service implements SosMessageListener {
         builder.setSmallIcon(R.drawable.ic_notification_torgi);
         builder.setContentTitle(getResources().getString(R.string.app_name));
         switch (inputSourceType) {
-            case NETWORK:
-                builder.setTicker(getResources().getString(R.string.notification_remote));
-                builder.setContentText(getResources().getString(R.string.notification_remote));
-                break;
-
             case LOCAL_FILE:
                 builder.setTicker(getResources().getString(R.string.notification_historical));
                 builder.setContentText(getResources().getString(R.string.notification_historical));
@@ -605,7 +557,7 @@ public class TorgiService extends Service implements SosMessageListener {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             CharSequence name = "TORGI";
             String description = "GNSS Recording data";
-            int importance = NotificationManager.IMPORTANCE_DEFAULT;
+            int importance = NotificationManager.IMPORTANCE_LOW;
             NotificationChannel channel = new NotificationChannel(NOTIFICATION_CHANNEL, name, importance);
             channel.setDescription(description);
             NotificationManager notificationManager = getSystemService(NotificationManager.class);
@@ -643,62 +595,34 @@ public class TorgiService extends Service implements SosMessageListener {
         }
     }
 
-    public void onSOSRequestReceived(AbstractOperation operation) {
-        if (operation != null) {
-            if (operation instanceof GetObservations) {
-                GetObservations getObservations = (GetObservations) operation;
-                long tempStart = getObservations.getStartTime();
-                long tempStop = getObservations.getStopTime();
-                if (tempStart < 0l)
-                    tempStart = System.currentTimeMillis() - 1000l * 10;
-                if (tempStop < tempStart)
-                    tempStop = System.currentTimeMillis();
-                if (tempStop - tempStart > MAX_SOS_RESPONSE_BLOCK)
-                    tempStop = tempStart + MAX_SOS_RESPONSE_BLOCK;
-                final long start = tempStart;
-                final long stop = tempStop;
-                if (geoPackageRecorder != null) {
-                    geoPackageRecorder.getGnssMeasurements(start, stop, new GeoPackageRetrievalListener() {
-                        @Override
-                        public void onGnssSatDataRetrieved(ArrayList<GeoPackageSatDataHelper> points) {
-                            Log.d(TAG, "onGnssSatDataRetrieved()");
-                            TorgiSOSBroadcastTransceiver.broadcast(TorgiService.this,
-                                    SOSHelper.getObservationResult(points,geoPackageRecorder.getGPSObservationPointsBlocking(start,stop),(double)ewRisk)); //ewRisk added as a temporary way of reporting current EW risk
-                        }
-
-                        @Override
-                        public void onGnssGeoPtRetrieved(ArrayList<GeoPackageGPSPtHelper> measurements) {
-                            Log.d(TAG, "onGnssSatDataRetrieved() - should not be called in this case");
-                        }
-                    });
-                }
-            } else if (operation instanceof GetCapabilities) {
-                TorgiSOSBroadcastTransceiver.broadcast(this,SOSHelper.getCapabilities());
-            } else if (operation instanceof DescribeSensor) {
-                TorgiSOSBroadcastTransceiver.broadcast(this,SOSHelper.getDescribeSensor(this,currentLocation));
-            }
-        }
-    }
-
     public Location getCurrentLocation() {
         return currentLocation;
     }
 
     //SOS listener calls
     @Override
-    public void onOperationReceived(AbstractSosOperation operation) {
+    public void onSosOperationReceived(AbstractSosOperation operation) {
         NotificationManager nMgr = (NotificationManager) this.getSystemService(Context.NOTIFICATION_SERVICE);
         nMgr.cancel(TORGI_SOS_SERVER_NOTIFICATION_ID);
     }
 
     @Override
-    public void onError(String message) {
+    public void onSosError(String message) {
         Log.e(SosIpcTransceiver.TAG,"SOS error: "+message);
         notifyOfSos(message,true);
     }
 
     @Override
-    public void onConfigurationSuccess() {
+    public void onSosConfigurationSuccess() {
         notifyOfSos("TORGI connected to the SOS server",false);
+        if (sosSensor != null) {
+            SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(getApplicationContext());
+            SharedPreferences.Editor edit = prefs.edit();
+            edit.putString(Config.PREFS_SOS_ASSIGNED_PROCEDURE,sosSensor.getAssignedProcedure());
+            edit.putString(Config.PREFS_SOS_ASSIGNED_OFFERING,sosSensor.getAssignedOffering());
+            edit.putString(Config.PREFS_SOS_ASSIGNED_TEMPLATE,sosSensor.getAssignedTemplate());
+            edit.apply();
+        } else
+            Log.e(SosIpcTransceiver.TAG,"SOS server connection completed, but sosSensor is null; this should never happen.");
     }
 }

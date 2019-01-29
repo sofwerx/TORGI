@@ -7,11 +7,6 @@ import org.json.JSONException;
 import org.json.JSONObject;
 import org.sofwerx.torgi.gnss.helper.GeoPackageGPSPtHelper;
 import org.sofwerx.torgi.gnss.helper.GeoPackageSatDataHelper;
-import org.sofwerx.torgi.ogc.sos.AbstractOperation;
-import org.sofwerx.torgi.ogc.sos.DescribeSensor;
-import org.sofwerx.torgi.ogc.sos.GetCapabilities;
-import org.sofwerx.torgi.ogc.sos.GetObservations;
-import org.sofwerx.torgi.ogc.sos.UnsupportedOperationException;
 import org.sofwerx.torgi.service.TorgiService;
 
 import java.io.IOException;
@@ -26,6 +21,10 @@ import java.util.Map;
 
 import fi.iki.elonen.NanoHTTPD;
 
+/**
+ * Deprecated but kept around for possible starting point for fuller SOS server implementation
+ */
+@Deprecated
 public class LiteWebServer {
     private final static String TAG = "TORGI.WS";
     private WebServer server;
@@ -84,7 +83,7 @@ public class LiteWebServer {
                         obj = getJSONInMap(map);
 
                     if (obj != null) {
-                        try {
+                        /*try {
                             AbstractOperation receivedOperation = AbstractOperation.getOperation(obj);
                             if (receivedOperation != null) {
                                 if (receivedOperation instanceof GetObservations) {
@@ -110,7 +109,7 @@ public class LiteWebServer {
                             Log.e(TAG, e.getMessage());
                             torgiService.notifyOfWebServer(getLocalIpAddress()+":"+ PORT,null,e.getMessage());
                             return newFixedLengthResponse(e.getMessage());
-                        }
+                        }*/
                     }
                 } catch (IOException ioe) {
                     torgiService.notifyOfWebServer(getLocalIpAddress()+":"+ PORT,null,ioe.getMessage());

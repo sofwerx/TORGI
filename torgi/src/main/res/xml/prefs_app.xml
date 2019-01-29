@@ -17,8 +17,7 @@
             android:key="sendtosos"
             android:title="Send to network SOS"
             android:summary="Sends sensor reports to an OGC Sensor Observation Service (SOS) server on a network"
-            android:defaultValue="true"
-            android:dependency="broadcast"/>
+            android:defaultValue="true"/>
 
         <EditTextPreference
             android:key="sosurl"

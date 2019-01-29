@@ -99,8 +99,7 @@ public class GNSSMeasurementService extends Thread {
                         if (location == null)
                             dp = new DataPoint(new SpaceTime(satData.getMeassuredTime()));
                         else {
-                            /*FIXME this is a slight bit of assumption, but basically, we are assuming that the
-                             GeoPackageSatDataHelper data was collected at the most recent location (should at least be very nearby*/
+                            //TODO this is a slight bit of assumption, but basically, we are assuming that the GeoPackageSatDataHelper data was collected at the most recent location (should at least be very nearby
                             if (location.hasAltitude())
                                 dp = new DataPoint(new SpaceTime(location.getLatitude(), location.getLongitude(), location.getAltitude(), satData.getMeassuredTime()));
                             else
@@ -122,7 +121,6 @@ public class GNSSMeasurementService extends Thread {
         if ((loc != null) && (measurements != null) && !measurements.isEmpty()) {
             handler.post(() -> {
                 synchronized (ewDetection) {
-                    //Log.d(TAG,"EW Measurement recorded");
                     DataPoint dp = new DataPoint(new SpaceTime(loc));
                     for (GnssMeasurement measurement : measurements) {
                         Satellite sat = Satellite.get(Constellation.get(measurement.getConstellationType()),measurement.getSvid());

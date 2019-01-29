@@ -17,12 +17,13 @@ import org.sofwerx.torgi.service.TorgiService;
 import java.net.MalformedURLException;
 import java.net.URL;
 
+@Deprecated
 public class DialogSourceSelect {
-    private static boolean ipChanged = false;
+    //private static boolean ipChanged = false;
     private static boolean sourceSwitched = false;
 
     public static void show(@NonNull final MainActivity activity, @NonNull final TorgiService torgiService) {
-        ipChanged = false;
+        //ipChanged = false;
         sourceSwitched = false;
         AlertDialog.Builder builder = new AlertDialog.Builder(activity);
         LayoutInflater inflater = activity.getLayoutInflater();
@@ -30,36 +31,36 @@ public class DialogSourceSelect {
         builder.setView(view).setPositiveButton(android.R.string.ok, (dialog, id) -> {
                     dialog.dismiss();
                 });
-        final EditText editIp = view.findViewById(R.id.sourceNetworkIP);
-        String ip = Config.getInstance(activity).getRemoteIp();
-        editIp.setText(ip);
+        //final EditText editIp = view.findViewById(R.id.sourceNetworkIP);
+        //String ip = Config.getInstance(activity).getRemoteIp();
+        //editIp.setText(ip);
         View viewSourceLocal = view.findViewById(R.id.sourceLocal);
-        View viewSourceNetwork = view.findViewById(R.id.sourceNetwork);
+        //View viewSourceNetwork = view.findViewById(R.id.sourceNetwork);
         View imageSourceLocal = view.findViewById(R.id.sourceImageLocal);
-        View imageSourceNetwork = view.findViewById(R.id.sourceImageNetwork);
-        final TextInputLayout editIpLayout = view.findViewById(R.id.sourceNetworkIPLayout);
-        if (ip == null)
-            editIpLayout.setError(null);
-        try {
-            new URL(ip);
-        } catch (MalformedURLException ignore) {
-            editIpLayout.setError(activity.getString(R.string.invalid_url));
-        }
+        //View imageSourceNetwork = view.findViewById(R.id.sourceImageNetwork);
+        //final TextInputLayout editIpLayout = view.findViewById(R.id.sourceNetworkIPLayout);
+        //if (ip == null)
+        //    editIpLayout.setError(null);
+        //try {
+        //    new URL(ip);
+        //} catch (MalformedURLException ignore) {
+        //    editIpLayout.setError(activity.getString(R.string.invalid_url));
+        //}
         if (torgiService.getInputType() == TorgiService.InputSourceType.LOCAL) {
             imageSourceLocal.setVisibility(View.VISIBLE);
-            imageSourceNetwork.setVisibility(View.INVISIBLE);
-        } else if (torgiService.getInputType() == TorgiService.InputSourceType.NETWORK) {
-            imageSourceLocal.setVisibility(View.INVISIBLE);
-            imageSourceNetwork.setVisibility(View.VISIBLE);
+        //    imageSourceNetwork.setVisibility(View.INVISIBLE);
+        //} else if (torgiService.getInputType() == TorgiService.InputSourceType.NETWORK) {
+        //    imageSourceLocal.setVisibility(View.INVISIBLE);
+        //    imageSourceNetwork.setVisibility(View.VISIBLE);
         }
         viewSourceLocal.setOnClickListener(v -> {
             if (imageSourceLocal.getVisibility() == View.INVISIBLE) {
                 sourceSwitched = true;
                 imageSourceLocal.setVisibility(View.VISIBLE);
-                imageSourceNetwork.setVisibility(View.INVISIBLE);
+        //        imageSourceNetwork.setVisibility(View.INVISIBLE);
             }
         });
-        viewSourceNetwork.setOnClickListener(v -> {
+        /*viewSourceNetwork.setOnClickListener(v -> {
             if (imageSourceNetwork.getVisibility() == View.INVISIBLE) {
                 sourceSwitched = true;
                 imageSourceLocal.setVisibility(View.INVISIBLE);
@@ -83,17 +84,17 @@ public class DialogSourceSelect {
                     editIpLayout.setError(activity.getString(R.string.invalid_url));
                 }
             }
-        });
+        });*/
         builder.setTitle(R.string.action_switch_input);
         builder.setOnCancelListener(dialog -> {
-            if (ipChanged)
-                Config.getInstance(activity).setRemoteIp(editIp.getText().toString());
+            //if (ipChanged)
+            //    Config.getInstance(activity).setRemoteIp(editIp.getText().toString());
             if (sourceSwitched) {
                 final TorgiService.InputSourceType type;
                 if (imageSourceLocal.getVisibility() == View.VISIBLE)
                     type = TorgiService.InputSourceType.LOCAL;
-                else if (imageSourceNetwork.getVisibility() == View.VISIBLE)
-                    type = TorgiService.InputSourceType.NETWORK;
+                //else if (imageSourceNetwork.getVisibility() == View.VISIBLE)
+                //    type = TorgiService.InputSourceType.NETWORK;
                 else
                     type = null;
                 if (type != null) {
@@ -106,14 +107,14 @@ public class DialogSourceSelect {
             }
         });
         builder.setOnDismissListener(dialog -> {
-            if (ipChanged)
-                Config.getInstance(activity).setRemoteIp(editIp.getText().toString());
+            //if (ipChanged)
+            //    Config.getInstance(activity).setRemoteIp(editIp.getText().toString());
             if (sourceSwitched) {
                 final TorgiService.InputSourceType type;
                 if (imageSourceLocal.getVisibility() == View.VISIBLE)
                     type = TorgiService.InputSourceType.LOCAL;
-                else if (imageSourceNetwork.getVisibility() == View.VISIBLE)
-                    type = TorgiService.InputSourceType.NETWORK;
+                //else if (imageSourceNetwork.getVisibility() == View.VISIBLE)
+                //    type = TorgiService.InputSourceType.NETWORK;
                 else
                     type = null;
                 if (type != null) {

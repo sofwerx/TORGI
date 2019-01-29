@@ -108,7 +108,7 @@ public class MainActivity extends AbstractTORGIActivity implements GnssMeasureme
                 Toast.makeText(MainActivity.this,getString(isChecked?R.string.gps_only_explained:R.string.not_gps_only_explained),Toast.LENGTH_LONG).show();
             }
         });
-        textLive.setOnClickListener(v -> DialogSourceSelect.show(MainActivity.this,torgiService));
+        //textLive.setOnClickListener(v -> DialogSourceSelect.show(MainActivity.this,torgiService));
         ewWarningView = findViewById(R.id.mainEWStatusView);
         ((CombinedChart)findViewById(R.id.chartIAW)).setNoDataText(getString(R.string.waiting_baseline));
     }
@@ -160,18 +160,6 @@ public class MainActivity extends AbstractTORGIActivity implements GnssMeasureme
                 textLive.setText(getString(R.string.live));
                 textLive.setTextColor(getColor(R.color.brightgreen));
                 textLive.setCompoundDrawablesWithIntrinsicBounds(R.drawable.ic_satellite,0,0,0);
-                break;
-
-            case NETWORK:
-                String ip = Config.getInstance(this).getRemoteIp();
-                if (ip == null) {
-                    textLive.setText("Enter a host IP for TORGI SOS");
-                    textLive.setTextColor(getColor(R.color.brightyellow));
-                } else {
-                    textLive.setText("TORGI SOS @ " + ip);
-                    textLive.setTextColor(getColor(R.color.brightgreen));
-                }
-                textLive.setCompoundDrawablesWithIntrinsicBounds(R.drawable.ic_network,0,0,0);
                 break;
         }
         textConstellations.setVisibility(View.INVISIBLE);
@@ -404,9 +392,9 @@ public class MainActivity extends AbstractTORGIActivity implements GnssMeasureme
             case R.id.action_about:
                 startActivity(new Intent(this,AboutActivity.class));
                 return true;
-            case R.id.action_switch_input:
-                DialogSourceSelect.show(this,torgiService);
-                return true;
+            //case R.id.action_switch_input:
+            //    DialogSourceSelect.show(this,torgiService);
+            //    return true;
             default:
                 return super.onOptionsItemSelected(item);
         }

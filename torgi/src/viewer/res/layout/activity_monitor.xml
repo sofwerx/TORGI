@@ -55,6 +55,7 @@
                 android:drawableStart="@drawable/ic_satellite"
                 android:text="@string/live"
                 android:textAlignment="center"
+                android:visibility="gone"
                 android:textColor="@color/brightgreen" />
 
             <RelativeLayout

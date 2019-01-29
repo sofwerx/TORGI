@@ -34,7 +34,7 @@
     <string name="pref_category_logging">Logging</string>
     <string name="pref_category_connectivity">Connectivity</string>
     <string name="pref_broadcast">Share with other apps</string>
-    <string name="pref_broadcast_narrative">Automatically respond to other apps with information about EW risk changes.</string>
+    <string name="pref_broadcast_narrative">Automatically share with other apps on this device information about EW risk changes.</string>
     <string name="pref_torgi_dir">Saved file directory</string>
     <string name="pref_torgi_dir_narrative">TORGI will save files in this directory.</string>
     <string name="title_activity_b">Activity</string>
@@ -42,6 +42,10 @@
     <string name="device_callsign_narrative">How this device identifies itself on a network</string>
     <string name="gps_only">GPS Constellation Only</string>
     <string name="gps_only_narrative">Only consider GNSS data from the GPS constellation when calculating EW risks</string>
-    <string name="share_geopackage">Share</string>
-    <string name="share_geopackage_narrative">Share the geopackage file as soon as TORGI closes</string>
+    <string name="share_geopackage">Share Collection File</string>
+    <string name="share_geopackage_narrative">Automatically share the geopackage file as soon as TORGI closes</string>
+    <string name="not_supported_title">TORGI may not work here</string>
+    <string name="not_supported_description">TORGI is not receiving the raw measurement data that it needs to work. The device\'s GPS appears to be working correctly, so this probably means this device is not capable of gathering the raw data TORGI needs. You can continue to wait for this raw data, but it does not look like this device supports TORGI.</string>
+    <string name="try_anyway">Keep Trying</string>
+    <string name="uninstall">Uninstall TORGI</string>
 </resources>

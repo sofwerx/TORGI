@@ -53,6 +53,7 @@ public class OperationInsertResultTemplate extends AbstractSosOperation {
         insertResultTemplate.setAttribute("xmlns:swe","http://www.opengis.net/swe/2.0");
         insertResultTemplate.setAttribute("xmlns:om","http://www.opengis.net/om/2.0");
         insertResultTemplate.setAttribute("xmlns:gml","http://www.opengis.net/gml/3.2");
+        insertResultTemplate.setAttribute("xmlns:xlink","http://www.w3.org/1999/xlink");
         insertResultTemplate.setAttribute("service","SOS");
         insertResultTemplate.setAttribute("version","2.0.0");
         Element proposedTemplate = doc.createElement("sos:proposedTemplate");

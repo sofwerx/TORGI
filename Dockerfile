@@ -60,7 +60,7 @@ WORKDIR /torgi
 
 COPY . .
 #RUN ln -nsf /geopackage-android/geopackage-sdk geopackage-sdk
-#RUN sed -i -e 's/^android {/android {\n lintOptions {\n    abortOnError false\n  }/' torgi/build.gradle
+RUN sed -i -e 's/^android {/android {\n lintOptions {\n    abortOnError false\n  }/' torgi/build.gradle
 RUN ./gradlew build
 
 CMD sleep 3600

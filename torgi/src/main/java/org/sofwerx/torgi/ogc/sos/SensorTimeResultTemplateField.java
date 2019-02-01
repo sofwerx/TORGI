@@ -26,9 +26,11 @@ public class SensorTimeResultTemplateField extends SensorResultTemplateField {
         element.appendChild(field);
         Element quantity = doc.createElement("swe:Time");
         quantity.setAttribute("definition","http://www.opengis.net/def/ogc/SamplingTime");
+        quantity.setAttribute("referenceFrame","http://www.opengis.net/def/trs/BIPM/0/UTC");
         field.appendChild(quantity);
         Element uom = doc.createElement("swe:uom");
-        uom.setAttribute("code","ISO 8601");
+        uom.setAttribute("xlink:href","http://www.opengis.net/def/uom/ISO-8601/0/Gregorian"); //this generates a 400 error
+        //uom.setAttribute("code","ISO 8601");
         quantity.appendChild(uom);
     }
 

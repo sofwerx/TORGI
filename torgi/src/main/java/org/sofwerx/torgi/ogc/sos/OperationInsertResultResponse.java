@@ -9,9 +9,13 @@ public class OperationInsertResultResponse extends AbstractSosOperation {
     public final static String NAMESPACE = "InsertResultResponse";
 
     @Override
+    public boolean isValid() { return true; }
+
+    @Override
     protected void parse(Element element) {
         if (element == null)
             return;
+        //ignore
     }
 
     @Override

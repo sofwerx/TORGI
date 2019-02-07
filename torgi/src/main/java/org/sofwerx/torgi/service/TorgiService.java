@@ -40,10 +40,15 @@ import org.sofwerx.torgi.listener.GnssMeasurementListener;
 import org.sofwerx.torgi.R;
 import org.sofwerx.torgi.listener.SensorListener;
 import org.sofwerx.torgi.ogc.sos.AbstractSosOperation;
+import org.sofwerx.torgi.ogc.sos.OperationInsertResult;
+import org.sofwerx.torgi.ogc.sos.OperationInsertResultTemplate;
+import org.sofwerx.torgi.ogc.sos.OperationInsertSensor;
+import org.sofwerx.torgi.ogc.sos.SensorLocationResultTemplateField;
 import org.sofwerx.torgi.ogc.sos.SensorMeasurement;
 import org.sofwerx.torgi.ogc.sos.SensorMeasurementLocation;
 import org.sofwerx.torgi.ogc.sos.SensorMeasurementTime;
 import org.sofwerx.torgi.ogc.sos.SensorResultTemplateField;
+import org.sofwerx.torgi.ogc.sos.SensorTimeResultTemplateField;
 import org.sofwerx.torgi.ogc.sos.SosIpcTransceiver;
 import org.sofwerx.torgi.ogc.sos.SosMessageListener;
 import org.sofwerx.torgi.ogc.sos.SosSensor;
@@ -51,9 +56,14 @@ import org.sofwerx.torgi.ogc.sos.SosService;
 import org.sofwerx.torgi.ui.FailureActivity;
 import org.sofwerx.torgi.ui.Heatmap;
 import org.sofwerx.torgi.util.CallsignUtil;
+import org.w3c.dom.Document;
+import org.w3c.dom.Element;
+import org.w3c.dom.NodeList;
 
 import java.io.File;
 import java.util.ArrayList;
+
+import javax.xml.parsers.ParserConfigurationException;
 
 import static org.sofwerx.torgi.service.TorgiService.InputSourceType.LOCAL;
 import static org.sofwerx.torgi.service.TorgiService.InputSourceType.LOCAL_FILE;

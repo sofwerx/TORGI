@@ -7,6 +7,16 @@ public class SensorMeasurement {
     protected SensorResultTemplateField format;
     protected Object value;
 
+    public static SensorMeasurement newFromResultTemplateField(SensorResultTemplateField field) {
+        if (field == null)
+            return null;
+        if (field instanceof SensorTimeResultTemplateField)
+            return new SensorMeasurementTime();
+        else if (field instanceof SensorLocationResultTemplateField)
+            return new SensorMeasurementLocation();
+        return new SensorMeasurement(field);
+    }
+
     public SensorMeasurement(SensorResultTemplateField field) {
         this.format = field;
     }
@@ -22,6 +32,16 @@ public class SensorMeasurement {
      * @param format
      */
     public void setFormat(SensorResultTemplateField format) { this.format = format; }
+
+    /**
+     * Gets the name for this measurement
+     * @return
+     */
+    public String getName() {
+        if (format == null)
+            return null;
+        return format.getName();
+    }
 
     /**
      * Gets the value of this measurement

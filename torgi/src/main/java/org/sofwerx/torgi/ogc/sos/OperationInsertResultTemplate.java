@@ -12,6 +12,7 @@ import javax.xml.parsers.ParserConfigurationException;
 public class OperationInsertResultTemplate extends AbstractSosOperation {
     public final static String NAMESPACE = "InsertResultTemplate";
     public final static String FIELD_SEPERATOR = ",";
+    public final static String BLOCK_SEPERATOR = "@@";
     private SosSensor sosSensor;
 
     public OperationInsertResultTemplate() { super(); }
@@ -23,9 +24,55 @@ public class OperationInsertResultTemplate extends AbstractSosOperation {
 
 
     @Override
-    protected void parse(Element element) {
+    public boolean isValid() {
+        return (sosSensor != null) && sosSensor.isReadyToRegisterResultTemplate();
+    }
+
+    @Override
+    public void parse(Element element) {
+        if (element == null)
+            return;
+        try {
+            if (sosSensor == null)
+                sosSensor = new SosSensor();
+            //No error checking is put in here aside from the exception catch since this whole structure should fail if any one element is not correct
+            Element proposedTemplate = (Element)element.getElementsByTagName(TAG_PROPOSED_TEMPLATE).item(0);
+            Element resultTemplate = (Element)proposedTemplate.getElementsByTagName(TAG_RESULT_TEMPLATE).item(0);
+            Element offering = (Element)resultTemplate.getElementsByTagName(TAG_OFFERING).item(0);
+            sosSensor.setAssignedOffering(offering.getTextContent());
+            Element resultStructure = (Element)resultTemplate.getElementsByTagName(TAG_RESULT_STRUCTURE).item(0);
+            Element dataRecord = (Element)resultStructure.getElementsByTagName(TAG_DATA_RECORD).item(0);
+            ArrayList<SensorResultTemplateField> fields = SensorTimeResultTemplateField.getTemplateFields(dataRecord);
+            if ((fields != null) && !fields.isEmpty()) {
+                for (SensorResultTemplateField field:fields) {
+                    SensorMeasurement sensorMeasurement = SensorMeasurement.newFromResultTemplateField(field);
+                    sosSensor.addMeasurement(sensorMeasurement);
+                }
+            }
+        } catch (Exception e) {
+            Log.e(SosIpcTransceiver.TAG,"OperationInsertResultTemplate parsing error: "+e.getMessage());
+        }
+        /*
+        Element dataRecord = doc.createElement(TAG_DATA_RECORD);
+        resultStructure.appendChild(dataRecord);
+        for (SensorMeasurement measurement:measurements) {
+         */
+
+
+
+
         //TODO
     }
+
+    private final static String TAG_PROPOSED_TEMPLATE = "sos:proposedTemplate";
+    private final static String TAG_RESULT_TEMPLATE = "sos:ResultTemplate";
+    private final static String TAG_OFFERING = "sos:offering";
+    private final static String TAG_RESULT_STRUCTURE = "sos:resultStructure";
+    private final static String TAG_DATA_RECORD = "swe:DataRecord";
+    private final static String TAG_RESULT_ENCODING = "sos:resultEncoding";
+    private final static String TAG_TEXT_ENCODING = "swe:TextEncoding";
+    private final static String NAME_TOKEN_SEPARATOR = "tokenSeparator";
+    private final static String NAME_BLOCK_SEPARATOR = "blockSeparator";
 
     @Override
     public Document toXML() throws ParserConfigurationException {
@@ -56,16 +103,16 @@ public class OperationInsertResultTemplate extends AbstractSosOperation {
         insertResultTemplate.setAttribute("xmlns:xlink","http://www.w3.org/1999/xlink");
         insertResultTemplate.setAttribute("service","SOS");
         insertResultTemplate.setAttribute("version","2.0.0");
-        Element proposedTemplate = doc.createElement("sos:proposedTemplate");
+        Element proposedTemplate = doc.createElement(TAG_PROPOSED_TEMPLATE);
         insertResultTemplate.appendChild(proposedTemplate);
-        Element resultTemplate = doc.createElement("sos:ResultTemplate");
+        Element resultTemplate = doc.createElement(TAG_RESULT_TEMPLATE);
         proposedTemplate.appendChild(resultTemplate);
-        Element offering = doc.createElement("sos:offering");
+        Element offering = doc.createElement(TAG_OFFERING);
         resultTemplate.appendChild(offering);
         offering.setTextContent(sosSensor.getAssignedOffering());
-        Element resultStructure = doc.createElement("sos:resultStructure");
+        Element resultStructure = doc.createElement(TAG_RESULT_STRUCTURE);
         resultTemplate.appendChild(resultStructure);
-        Element dataRecord = doc.createElement("swe:DataRecord");
+        Element dataRecord = doc.createElement(TAG_DATA_RECORD);
         resultStructure.appendChild(dataRecord);
         for (SensorMeasurement measurement:measurements) {
             if (measurement.getFormat() != null)
@@ -73,12 +120,14 @@ public class OperationInsertResultTemplate extends AbstractSosOperation {
             else
                 Log.e(SosIpcTransceiver.TAG,"SensorMeasurement does not have an assigned format and will be dropped from InsertResultTemplate operation");
         }
-        Element resultEncoding = doc.createElement("sos:resultEncoding");
+        Element resultEncoding = doc.createElement(TAG_RESULT_ENCODING);
         resultTemplate.appendChild(resultEncoding);
-        Element textEncoding = doc.createElement("swe:TextEncoding");
+        Element textEncoding = doc.createElement(TAG_TEXT_ENCODING);
         resultEncoding.appendChild(textEncoding);
-        textEncoding.setAttribute("tokenSeparator",FIELD_SEPERATOR);
-        textEncoding.setAttribute("blockSeparator","@@");
+        textEncoding.setAttribute(NAME_TOKEN_SEPARATOR,FIELD_SEPERATOR);
+        textEncoding.setAttribute(NAME_BLOCK_SEPARATOR,BLOCK_SEPERATOR);
         return doc;
     }
+
+    public SosSensor getSosSensor() { return sosSensor; }
 }

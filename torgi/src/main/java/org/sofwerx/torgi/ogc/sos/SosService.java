@@ -103,7 +103,12 @@ public class SosService implements SosMessageListener {
                 if (isRunning.get()) {
                     if (ipcBroadcast) {
                         Log.d(SosIpcTransceiver.TAG,"Broadcasting SOS operation over IPC");
-                        transceiver.broadcast(context, operation);
+                        try {
+                            transceiver.broadcast(context, operation);
+                        } catch (SosException e) {
+                            Log.e(SosIpcTransceiver.TAG,"Unable to broadcast SOS operation: "+e.getMessage());
+                            e.printStackTrace();
+                        }
                     }
                     if (serverURL != null) {
                         Log.d(SosIpcTransceiver.TAG,"Broadcasting SOS operation to "+serverURL);

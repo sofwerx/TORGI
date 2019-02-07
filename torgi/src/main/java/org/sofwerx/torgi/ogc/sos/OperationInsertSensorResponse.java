@@ -24,6 +24,11 @@ public class OperationInsertSensorResponse extends AbstractSosOperation {
     }
 
     @Override
+    public boolean isValid() {
+        return (assignedProcedure != null) && (assignedOffering != null);
+    }
+
+    @Override
     protected void parse(Element element) {
         if ((element == null) || !element.hasChildNodes())
             return;

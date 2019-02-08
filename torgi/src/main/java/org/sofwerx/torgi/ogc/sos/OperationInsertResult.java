@@ -16,6 +16,8 @@ public class OperationInsertResult extends AbstractSosOperation {
 
     public OperationInsertResult(SosSensor sosSensor) { this.sosSensor = sosSensor; }
 
+    public SosSensor getSosSensor() { return sosSensor; }
+
     @Override
     public void parse(Element insertResult) {
         if (insertResult == null) {

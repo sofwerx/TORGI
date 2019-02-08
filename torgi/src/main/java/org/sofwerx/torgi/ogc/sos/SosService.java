@@ -6,6 +6,8 @@ import android.os.Handler;
 import android.os.HandlerThread;
 import android.util.Log;
 
+import org.sofwerx.torgi.Config;
+
 import java.io.IOException;
 import java.util.concurrent.atomic.AtomicBoolean;
 
@@ -51,6 +53,7 @@ public class SosService implements SosMessageListener {
             }
         };
         sosThread.start();
+        ipcBroadcast = Config.isIpcBroadcastEnabled(context);
     }
 
     /**
@@ -62,7 +65,7 @@ public class SosService implements SosMessageListener {
             if (on) {
                 if (context != null) {
                     Log.i(SosIpcTransceiver.TAG,"SosService turned ON");
-                    transceiver = new SosIpcTransceiver(listener);
+                    transceiver = new SosIpcTransceiver(this);
                     IntentFilter intentFilter = new IntentFilter(SosIpcTransceiver.ACTION_SOS);
                     context.registerReceiver(transceiver, intentFilter);
                     broadcastSensorReadings();
@@ -97,9 +100,9 @@ public class SosService implements SosMessageListener {
     }
 
     private void broadcast(AbstractSosOperation operation) {
-        Log.d(SosIpcTransceiver.TAG,"Broadcasting "+operation.getClass().getName());
         if (handler != null) {
             handler.post(() -> {
+                Log.d(SosIpcTransceiver.TAG,"Broadcasting "+operation.getClass().getName());
                 if (isRunning.get()) {
                     if (ipcBroadcast) {
                         Log.d(SosIpcTransceiver.TAG,"Broadcasting SOS operation over IPC");
@@ -110,7 +113,7 @@ public class SosService implements SosMessageListener {
                             e.printStackTrace();
                         }
                     }
-                    if (serverURL != null) {
+                    if ((serverURL != null) && Config.isSosBroadcastEnabled(context)) {
                         Log.d(SosIpcTransceiver.TAG,"Broadcasting SOS operation to "+serverURL);
                         try {
                             String result = HttpHelper.post(serverURL,SosIpcTransceiver.toString(operation.toXML()));
@@ -198,8 +201,6 @@ public class SosService implements SosMessageListener {
 
     @Override
     public void onSosOperationReceived(AbstractSosOperation operation) {
-        if (listener != null)
-            listener.onSosOperationReceived(operation);
         if (operation instanceof OperationInsertSensorResponse) {
             if (sosSensor != null) {
                 OperationInsertSensorResponse response = (OperationInsertSensorResponse)operation;
@@ -225,6 +226,8 @@ public class SosService implements SosMessageListener {
                     Log.i(SosIpcTransceiver.TAG,"InsertResultTemplateResponse received, but it was for template "+response.getAcceptedTemplate());
             }
         }
+        if (listener != null)
+            listener.onSosOperationReceived(operation);
     }
 
     @Override
@@ -241,15 +244,7 @@ public class SosService implements SosMessageListener {
             listener.onSosConfigurationSuccess();
     }
 
-    /**
-     * Should this service broadcast SOS data over IPC
-     * @return
-     */
-    public boolean isIpcBroadcast() { return ipcBroadcast; }
-
-    /**
-     * Sets if this service should broadcast SOS data over IPC
-     * @param ipcBroadcast
-     */
-    public void setIpcBroadcast(boolean ipcBroadcast) { this.ipcBroadcast = ipcBroadcast; }
+    public void setIpcBroadcast(boolean broadcast) {
+        ipcBroadcast = broadcast;
+    }
 }

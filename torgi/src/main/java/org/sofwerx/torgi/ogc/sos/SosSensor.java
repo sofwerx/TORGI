@@ -192,4 +192,13 @@ public class SosSensor {
     public boolean isReadyToSendResults() {
         return (assignedTemplate != null);
     }
+
+
+    public boolean isSame(SosSensor other) {
+        if (other == null)
+            return false;
+        if ((uniqueId == null) || (other.uniqueId == null))
+            return false;
+        return uniqueId.equalsIgnoreCase(other.uniqueId);
+    }
 }

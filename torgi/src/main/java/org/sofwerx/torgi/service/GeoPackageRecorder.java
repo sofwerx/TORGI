@@ -610,125 +610,128 @@ public class GeoPackageRecorder extends HandlerThread {
     public void onSensorUpdated(final SensorEvent event) {
         if (ready.get() && (handler != null) && (event != null)) {
             handler.post(() -> {
-                float[] values = event.values;
-                if ((values != null) && (values.length > 0)) {
-                    UserCustomDao sensorDao = RTE.getUserDao(motionTblName);
-                    UserCustomRow sensorRow = sensorDao.newRow();
-                    for (int i=1;i<sensorRow.columnCount();i++) {
-                        sensorRow.setValue(i,0d);
+                try {
+                    float[] values = event.values;
+                    if ((values != null) && (values.length > 0)) {
+                        UserCustomDao sensorDao = RTE.getUserDao(motionTblName);
+                        UserCustomRow sensorRow = sensorDao.newRow();
+                        for (int i = 1; i < sensorRow.columnCount(); i++) {
+                            sensorRow.setValue(i, 0d);
+                        }
+                        sensorRow.setValue(SENSOR_STATIONARY, 0);
+                        sensorRow.setValue(SENSOR_MOTION, 0);
+                        sensorRow.setValue("data_dump", "");
+                        sensorRow.setValue(SENSOR_TIME, event.timestamp);
+                        switch (event.sensor.getType()) {
+                            case Sensor.TYPE_MAGNETIC_FIELD:
+                                if (values.length >= 3) {
+                                    sensorRow.setValue(SENSOR_MAG_X, (double) values[0]);
+                                    sensorRow.setValue(SENSOR_MAG_Y, (double) values[1]);
+                                    sensorRow.setValue(SENSOR_MAG_Z, (double) values[2]);
+                                }
+                                break;
+
+                            case Sensor.TYPE_MAGNETIC_FIELD_UNCALIBRATED:
+                                if (values.length >= 3) {
+                                    sensorRow.setValue(SENSOR_MAG_X, (double) values[0]);
+                                    sensorRow.setValue(SENSOR_MAG_Y, (double) values[1]);
+                                    sensorRow.setValue(SENSOR_MAG_Z, (double) values[2]);
+                                }
+                                break;
+
+                            case Sensor.TYPE_ACCELEROMETER:
+                                if (values.length >= 3) {
+                                    sensorRow.setValue(SENSOR_ACCEL_X, (double) values[0]);
+                                    sensorRow.setValue(SENSOR_ACCEL_Y, (double) values[1]);
+                                    sensorRow.setValue(SENSOR_ACCEL_Z, (double) values[2]);
+                                }
+                                break;
+
+                            case Sensor.TYPE_ACCELEROMETER_UNCALIBRATED:
+                                if (values.length >= 3) {
+                                    sensorRow.setValue(SENSOR_ACCEL_X, (double) values[0]);
+                                    sensorRow.setValue(SENSOR_ACCEL_Y, (double) values[1]);
+                                    sensorRow.setValue(SENSOR_ACCEL_Z, (double) values[2]);
+                                }
+                                break;
+
+                            case Sensor.TYPE_LINEAR_ACCELERATION:
+                                if (values.length >= 3) {
+                                    sensorRow.setValue(SENSOR_LINEAR_ACCEL_X, (double) values[0]);
+                                    sensorRow.setValue(SENSOR_LINEAR_ACCEL_Y, (double) values[1]);
+                                    sensorRow.setValue(SENSOR_LINEAR_ACCEL_Z, (double) values[2]);
+                                }
+                                break;
+
+                            case Sensor.TYPE_GYROSCOPE:
+                                if (values.length >= 3) {
+                                    sensorRow.setValue(SENSOR_GYRO_X, (double) values[0]);
+                                    sensorRow.setValue(SENSOR_GYRO_Y, (double) values[1]);
+                                    sensorRow.setValue(SENSOR_GYRO_Z, (double) values[2]);
+                                }
+                                break;
+
+                            case Sensor.TYPE_GYROSCOPE_UNCALIBRATED:
+                                if (values.length >= 3) {
+                                    sensorRow.setValue(SENSOR_GYRO_X, (double) values[0]);
+                                    sensorRow.setValue(SENSOR_GYRO_Y, (double) values[1]);
+                                    sensorRow.setValue(SENSOR_GYRO_Z, (double) values[2]);
+                                }
+                                break;
+
+                            case Sensor.TYPE_GRAVITY:
+                                if (values.length >= 3) {
+                                    sensorRow.setValue(SENSOR_GRAVITY_X, (double) values[0]);
+                                    sensorRow.setValue(SENSOR_GRAVITY_Y, (double) values[1]);
+                                    sensorRow.setValue(SENSOR_GRAVITY_Z, (double) values[2]);
+                                }
+                                break;
+
+                            case Sensor.TYPE_ROTATION_VECTOR:
+                                if (values.length >= 5) {
+                                    sensorRow.setValue(SENSOR_ROT_VEC_X, (double) values[0]);
+                                    sensorRow.setValue(SENSOR_ROT_VEC_Y, (double) values[1]);
+                                    sensorRow.setValue(SENSOR_ROT_VEC_Z, (double) values[2]);
+                                    sensorRow.setValue(SENSOR_ROT_VEC_COS, (double) values[3]);
+                                    sensorRow.setValue(SENSOR_ROT_VEC_HDG_ACC, (double) values[4]);
+                                }
+                                break;
+
+                            case Sensor.TYPE_AMBIENT_TEMPERATURE:
+                                sensorRow.setValue(SENSOR_TEMP, (double) values[0]);
+                                break;
+
+                            case Sensor.TYPE_RELATIVE_HUMIDITY:
+                                sensorRow.setValue(SENSOR_HUMIDITY, (double) values[0]);
+                                break;
+
+                            case Sensor.TYPE_PROXIMITY:
+                                sensorRow.setValue(SENSOR_PROX, (double) values[0]);
+                                break;
+
+                            case Sensor.TYPE_PRESSURE:
+                                sensorRow.setValue(SENSOR_BARO, (double) values[0]);
+                                break;
+
+                            case Sensor.TYPE_LIGHT:
+                                sensorRow.setValue(SENSOR_LUX, (double) values[0]);
+                                break;
+
+                            case Sensor.TYPE_STATIONARY_DETECT:
+                                sensorRow.setValue(SENSOR_STATIONARY, 1);
+                                break;
+
+                            case Sensor.TYPE_MOTION_DETECT:
+                                sensorRow.setValue(SENSOR_MOTION, 1);
+                                break;
+
+                            default:
+                                sensorRow = null;
+                        }
+                        if (sensorRow != null)
+                            sensorDao.insert(sensorRow);
                     }
-                    sensorRow.setValue(SENSOR_STATIONARY,0);
-                    sensorRow.setValue(SENSOR_MOTION,0);
-                    sensorRow.setValue("data_dump","");
-                    sensorRow.setValue(SENSOR_TIME,event.timestamp);
-                    switch (event.sensor.getType()) {
-                        case Sensor.TYPE_MAGNETIC_FIELD:
-                            if (values.length >= 3) {
-                                sensorRow.setValue(SENSOR_MAG_X, (double)values[0]);
-                                sensorRow.setValue(SENSOR_MAG_Y, (double)values[1]);
-                                sensorRow.setValue(SENSOR_MAG_Z, (double)values[2]);
-                            }
-                            break;
-
-                        case Sensor.TYPE_MAGNETIC_FIELD_UNCALIBRATED:
-                            if (values.length >= 3) {
-                                sensorRow.setValue(SENSOR_MAG_X, (double)values[0]);
-                                sensorRow.setValue(SENSOR_MAG_Y, (double)values[1]);
-                                sensorRow.setValue(SENSOR_MAG_Z, (double)values[2]);
-                            }
-                            break;
-
-                        case Sensor.TYPE_ACCELEROMETER:
-                            if (values.length >= 3) {
-                                sensorRow.setValue(SENSOR_ACCEL_X, (double)values[0]);
-                                sensorRow.setValue(SENSOR_ACCEL_Y, (double)values[1]);
-                                sensorRow.setValue(SENSOR_ACCEL_Z, (double)values[2]);
-                            }
-                            break;
-
-                        case Sensor.TYPE_ACCELEROMETER_UNCALIBRATED:
-                            if (values.length >= 3) {
-                                sensorRow.setValue(SENSOR_ACCEL_X, (double)values[0]);
-                                sensorRow.setValue(SENSOR_ACCEL_Y, (double)values[1]);
-                                sensorRow.setValue(SENSOR_ACCEL_Z, (double)values[2]);
-                            }
-                            break;
-
-                        case Sensor.TYPE_LINEAR_ACCELERATION:
-                            if (values.length >= 3) {
-                                sensorRow.setValue(SENSOR_LINEAR_ACCEL_X, (double)values[0]);
-                                sensorRow.setValue(SENSOR_LINEAR_ACCEL_Y, (double)values[1]);
-                                sensorRow.setValue(SENSOR_LINEAR_ACCEL_Z, (double)values[2]);
-                            }
-                            break;
-
-                        case Sensor.TYPE_GYROSCOPE:
-                            if (values.length >= 3) {
-                                sensorRow.setValue(SENSOR_GYRO_X, (double)values[0]);
-                                sensorRow.setValue(SENSOR_GYRO_Y, (double)values[1]);
-                                sensorRow.setValue(SENSOR_GYRO_Z, (double)values[2]);
-                            }
-                            break;
-
-                        case Sensor.TYPE_GYROSCOPE_UNCALIBRATED:
-                            if (values.length >= 3) {
-                                sensorRow.setValue(SENSOR_GYRO_X, (double)values[0]);
-                                sensorRow.setValue(SENSOR_GYRO_Y, (double)values[1]);
-                                sensorRow.setValue(SENSOR_GYRO_Z, (double)values[2]);
-                            }
-                            break;
-
-                        case Sensor.TYPE_GRAVITY:
-                            if (values.length >= 3) {
-                                sensorRow.setValue(SENSOR_GRAVITY_X, (double)values[0]);
-                                sensorRow.setValue(SENSOR_GRAVITY_Y, (double)values[1]);
-                                sensorRow.setValue(SENSOR_GRAVITY_Z, (double)values[2]);
-                            }
-                            break;
-
-                        case Sensor.TYPE_ROTATION_VECTOR:
-                            if (values.length >= 5) {
-                                sensorRow.setValue(SENSOR_ROT_VEC_X, (double)values[0]);
-                                sensorRow.setValue(SENSOR_ROT_VEC_Y, (double)values[1]);
-                                sensorRow.setValue(SENSOR_ROT_VEC_Z, (double)values[2]);
-                                sensorRow.setValue(SENSOR_ROT_VEC_COS, (double)values[3]);
-                                sensorRow.setValue(SENSOR_ROT_VEC_HDG_ACC, (double)values[4]);
-                            }
-                            break;
-
-                        case Sensor.TYPE_AMBIENT_TEMPERATURE:
-                            sensorRow.setValue(SENSOR_TEMP,(double)values[0]);
-                            break;
-
-                        case Sensor.TYPE_RELATIVE_HUMIDITY:
-                            sensorRow.setValue(SENSOR_HUMIDITY,(double)values[0]);
-                            break;
-
-                        case Sensor.TYPE_PROXIMITY:
-                            sensorRow.setValue(SENSOR_PROX,(double)values[0]);
-                            break;
-
-                        case Sensor.TYPE_PRESSURE:
-                            sensorRow.setValue(SENSOR_BARO,(double)values[0]);
-                            break;
-
-                        case Sensor.TYPE_LIGHT:
-                            sensorRow.setValue(SENSOR_LUX,(double)values[0]);
-                            break;
-
-                        case Sensor.TYPE_STATIONARY_DETECT:
-                            sensorRow.setValue(SENSOR_STATIONARY,1);
-                            break;
-
-                        case Sensor.TYPE_MOTION_DETECT:
-                            sensorRow.setValue(SENSOR_MOTION,1);
-                            break;
-
-                        default:
-                            sensorRow = null;
-                    }
-                    if (sensorRow != null)
-                        sensorDao.insert(sensorRow);
+                } catch (Exception ignore) {
                 }
             });
         }

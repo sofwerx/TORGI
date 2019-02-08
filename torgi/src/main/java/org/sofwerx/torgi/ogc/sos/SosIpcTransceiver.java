@@ -49,9 +49,11 @@ public class SosIpcTransceiver extends BroadcastReceiver {
     @Override
     public void onReceive(Context context, Intent intent) {
         if ((context != null) && (intent != null)) {
-            if (ACTION_SOS.equals(intent.getAction()))
-                onMessageReceived(context, intent.getStringExtra(EXTRA_ORIGIN), intent.getStringExtra(EXTRA_PAYLOAD));
-            else
+            if (ACTION_SOS.equals(intent.getAction())) {
+                String origin = intent.getStringExtra(EXTRA_ORIGIN);
+                if (!BuildConfig.APPLICATION_ID.equalsIgnoreCase(origin))
+                    onMessageReceived(context, origin, intent.getStringExtra(EXTRA_PAYLOAD));
+            } else
                 Log.e(TAG, "Unexpected action message received: " + intent.getAction());
         }
     }

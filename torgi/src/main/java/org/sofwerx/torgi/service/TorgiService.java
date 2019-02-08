@@ -194,7 +194,7 @@ public class TorgiService extends Service implements SosMessageListener {
         sosSensor.setAssignedTemplate(prefs.getString(Config.PREFS_SOS_ASSIGNED_TEMPLATE,null));
         sosMeasurementTime = new SensorMeasurementTime();
         sosMeasurementLocation = new SensorMeasurementLocation();
-        sosMeasurementCn0 = new SensorMeasurement(new SensorResultTemplateField("cno",SosIpcTransceiver.SOFWERX_LINK_PLACEHOLDER,"dB-Hz"));
+        sosMeasurementCn0 = new SensorMeasurement(new SensorResultTemplateField("cn0",SosIpcTransceiver.SOFWERX_LINK_PLACEHOLDER,"dB-Hz"));
         sosMeasurementAgc = new SensorMeasurement(new SensorResultTemplateField("agc",SosIpcTransceiver.SOFWERX_LINK_PLACEHOLDER,"dB"));
         sosMeasurementRisk = new SensorMeasurement(new SensorResultTemplateField("risk",SosIpcTransceiver.SOFWERX_LINK_PLACEHOLDER,"%"));
         sosSensor.addMeasurement(sosMeasurementTime);

@@ -43,6 +43,14 @@ public class Config {
         }
     }
 
+    public static boolean isSosBroadcastEnabled(Context context) {
+        return PreferenceManager.getDefaultSharedPreferences(context).getBoolean(PREFS_SEND_TO_SOS,true);
+    }
+
+    public static boolean isIpcBroadcastEnabled(Context context) {
+        return PreferenceManager.getDefaultSharedPreferences(context).getBoolean(PREFS_BROADCAST,true);
+    }
+
     public void loadPrefs() {
         gpsOnly = prefs.getBoolean(PREFS_GPS_ONLY,false);
     }

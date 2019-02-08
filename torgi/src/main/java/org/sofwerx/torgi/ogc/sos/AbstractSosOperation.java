@@ -55,6 +55,12 @@ public abstract class AbstractSosOperation {
         return operation;
     }
 
+    /**
+     * Does this operation contain all the information it needs
+     * @return
+     */
+    public abstract boolean isValid();
+
     protected abstract void parse(Element element);
     public Document toXML() throws ParserConfigurationException {
         DocumentBuilderFactory factory = DocumentBuilderFactory.newInstance();

@@ -11,6 +11,9 @@ public class SensorMeasurementTime extends SensorMeasurement {
     }
 
     @Override
+    public String getName() { return "time"; }
+
+    @Override
     public String toString() {
         if (value instanceof Long)
             return SosIpcTransceiver.formatTime((Long)value);

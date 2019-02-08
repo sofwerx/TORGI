@@ -13,6 +13,9 @@ public class SensorMeasurementLocation extends SensorMeasurement {
         super(new SensorLocationResultTemplateField(null,null,null));
     }
 
+    @Override
+    public String getName() { return "location"; }
+
     /**
      * Gets the latitude (WGS-84)
      * @return

@@ -21,6 +21,11 @@ public class OperationInsertResultTemplateResponse extends AbstractSosOperation 
     }
 
     @Override
+    public boolean isValid() {
+        return (acceptedTemplate != null);
+    }
+
+    @Override
     protected void parse(Element element) {
         if ((element == null) || !element.hasChildNodes())
             return;

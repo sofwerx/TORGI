@@ -49,9 +49,11 @@ public class SosIpcTransceiver extends BroadcastReceiver {
     @Override
     public void onReceive(Context context, Intent intent) {
         if ((context != null) && (intent != null)) {
-            if (ACTION_SOS.equals(intent.getAction()))
-                onMessageReceived(context, intent.getStringExtra(EXTRA_ORIGIN), intent.getStringExtra(EXTRA_PAYLOAD));
-            else
+            if (ACTION_SOS.equals(intent.getAction())) {
+                String origin = intent.getStringExtra(EXTRA_ORIGIN);
+                if (!BuildConfig.APPLICATION_ID.equalsIgnoreCase(origin))
+                    onMessageReceived(context, origin, intent.getStringExtra(EXTRA_PAYLOAD));
+            } else
                 Log.e(TAG, "Unexpected action message received: " + intent.getAction());
         }
     }
@@ -90,18 +92,21 @@ public class SosIpcTransceiver extends BroadcastReceiver {
      * @param context
      * @param operation
      */
-    public void broadcast(Context context, AbstractSosOperation operation) {
+    public void broadcast(Context context, AbstractSosOperation operation) throws SosException {
         if (operation != null) {
+            if (!operation.isValid()) {
+                throw new SosException(operation.getClass().getSimpleName()+" does not have all required information");
+            }
             Document doc = null;
             try {
                 doc = operation.toXML();
             } catch (ParserConfigurationException e) {
-                e.printStackTrace();
+                throw new SosException("Unable to create document: "+e.getMessage());
             }
             try {
                 broadcast(context,toString(doc));
             } catch (Exception ex) {
-                Log.d(TAG,"Unable to convert XML document to string");
+                throw new SosException("Unable to convert XML document to string: "+ex.getMessage());
             }
         }
     }
@@ -119,40 +124,6 @@ public class SosIpcTransceiver extends BroadcastReceiver {
         transformer.transform(new DOMSource(doc), new StreamResult(writer));
         return writer.toString();
     }
-
-    //FIXME just for testing
-    /*public static void test() {
-        DocumentBuilderFactory factory = DocumentBuilderFactory.newInstance();
-        try {
-            SosSensor sensor = new SosSensor("TORGI WISKEY 36","http://www.sofwerx.org/torgi/wiskey36","TORGI","Tactical Observation of RF and GNSS Interference sensor");
-            SensorMeasurementTime sensorMeasurementTime = new SensorMeasurementTime();
-            SensorMeasurementLocation sensorMeasurementLocation = new SensorMeasurementLocation();
-            SensorMeasurement sensorMeasurementCn0 = new SensorMeasurement(new SensorResultTemplateField("cn0", SosIpcTransceiver.SOFWERX_LINK_PLACEHOLDER,"dB-Hz"));
-            SensorMeasurement sensorMeasurementAgc = new SensorMeasurement(new SensorResultTemplateField("agc", SosIpcTransceiver.SOFWERX_LINK_PLACEHOLDER,"dB"));
-            SensorMeasurement sensorMeasurementRisk = new SensorMeasurement(new SensorResultTemplateField("risk", SosIpcTransceiver.SOFWERX_LINK_PLACEHOLDER,"%"));
-            sensor.addMeasurement(sensorMeasurementTime);
-            sensor.addMeasurement(sensorMeasurementLocation);
-            sensor.addMeasurement(sensorMeasurementCn0);
-            sensor.addMeasurement(sensorMeasurementAgc);
-            sensor.addMeasurement(sensorMeasurementRisk);
-            OperationInsertSensor opInSen = new OperationInsertSensor(sensor);
-            Log.d(TAG,toString(opInSen.toXML()));
-            sensor.setAssignedProcedure("http://www.sofwerx.org/torgi/wiskey36");
-            sensor.setAssignedOffering("http://www.sofwerx.org/torgi/wiskey36-sos");
-            OperationInsertResultTemplate opInRsltT = new OperationInsertResultTemplate(sensor);
-            Log.d(TAG,toString(opInRsltT.toXML()));
-            sensor.setAssignedTemplate("http://www.sofwerx.org/torgi/wiskey36#output0");
-            sensorMeasurementTime.setValue(System.currentTimeMillis());
-            sensorMeasurementLocation.setLocation(27.956419,-82.4394057,17.0);
-            sensorMeasurementCn0.setValue(26.5d);
-            sensorMeasurementAgc.setValue(1d);
-            sensorMeasurementRisk.setValue(11.25d);
-            OperationInsertResult opInRes = new OperationInsertResult(sensor);
-            Log.d(TAG,toString(opInRes.toXML()));
-        } catch (ParserConfigurationException | TransformerException e) {
-            e.printStackTrace();
-        }
-    }*/
 
     public void setListener(SosMessageListener listener) {
         this.listener = listener;

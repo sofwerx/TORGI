@@ -17,6 +17,7 @@ public class Config {
     public final static String PREFS_UUID = "callsign";
     public final static String PREFS_GPS_ONLY = "gpsonly";
     public final static String PREFS_BROADCAST = "broadcast";
+    public final static String PREFS_SQAN = "sqan";
     public final static String PREFS_SEND_TO_SOS = "sendtosos";
     public final static String PREFS_SOS_URL = "sosurl";
     public final static String PREFS_SOS_ASSIGNED_PROCEDURE = "sosprocedure";
@@ -49,6 +50,10 @@ public class Config {
 
     public static boolean isIpcBroadcastEnabled(Context context) {
         return PreferenceManager.getDefaultSharedPreferences(context).getBoolean(PREFS_BROADCAST,true);
+    }
+
+    public static boolean isSqAnBroadcastEnabled(Context context) {
+        return PreferenceManager.getDefaultSharedPreferences(context).getBoolean(PREFS_SQAN,true);
     }
 
     public void loadPrefs() {

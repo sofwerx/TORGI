@@ -60,6 +60,7 @@ public class HttpHelper {
         }
 
         conn.disconnect();
+        Log.d(SosIpcTransceiver.TAG,"HttpURLConnection disconnected");
 
         if ((response != null) && (response.length() < 1))
             response = null;

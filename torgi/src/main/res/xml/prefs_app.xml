@@ -8,6 +8,13 @@
             android:summary="@string/pref_broadcast_narrative"
             android:defaultValue="true"/>
 
+        <CheckBoxPreference
+            android:key="sqan"
+            android:title="@string/pref_broadcast_sqan"
+            android:summary="@string/pref_broadcast_sqan_narrative"
+            android:defaultValue="true"
+            android:dependency="broadcast"/>
+
         <EditTextPreference
             android:key="callsign"
             android:title="@string/device_callsign"

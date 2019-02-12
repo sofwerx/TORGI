@@ -35,6 +35,8 @@
     <string name="pref_category_connectivity">Connectivity</string>
     <string name="pref_broadcast">Share with other apps</string>
     <string name="pref_broadcast_narrative">Automatically share with other apps on this device information about EW risk changes.</string>
+    <string name="pref_broadcast_sqan">Broadcast over SqAN</string>
+    <string name="pref_broadcast_sqan_narrative">Automatically share EW risk changes over the Squad Area Network (SqAN) if installed.</string>
     <string name="pref_torgi_dir">Saved file directory</string>
     <string name="pref_torgi_dir_narrative">TORGI will save files in this directory.</string>
     <string name="title_activity_b">Activity</string>

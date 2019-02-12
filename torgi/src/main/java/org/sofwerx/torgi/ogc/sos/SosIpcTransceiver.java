@@ -6,6 +6,7 @@ import android.content.Intent;
 import android.util.Log;
 
 import org.sofwerx.torgi.BuildConfig;
+import org.sofwerx.torgi.Config;
 import org.w3c.dom.Document;
 import org.xml.sax.InputSource;
 import org.xml.sax.SAXException;
@@ -13,9 +14,11 @@ import org.xml.sax.SAXException;
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.io.StringWriter;
+import java.io.UnsupportedEncodingException;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.util.Date;
+import java.util.Locale;
 
 import javax.xml.parsers.DocumentBuilder;
 import javax.xml.parsers.DocumentBuilderFactory;
@@ -36,10 +39,15 @@ import javax.xml.transform.stream.StreamResult;
 public class SosIpcTransceiver extends BroadcastReceiver {
     public final static String TAG = "SosIpc";
     public final static String SOFWERX_LINK_PLACEHOLDER = "http://www.sofwerx.org/placeholder"; //this is used as a placeholder where a URL should be provided for a new standard or feature
-    private final static SimpleDateFormat dateFormatISO8601 = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSSXXX");
+    private final static SimpleDateFormat dateFormatISO8601 = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSSXXX", Locale.US);
     public static final String ACTION_SOS = "org.sofwerx.ogc.ACTION_SOS";
     private static final String EXTRA_PAYLOAD = "SOS";
     private static final String EXTRA_ORIGIN = "src";
+    public static final String ACTION_SQAN_BROADCAST = "org.sofwerx.sqan.pkt";
+    private final static String SQAN_PACKET_BYTES = "bytes";
+    private final static String SQAN_PACKET_ORIGIN = "src";
+    private final static String SQAN_PACKET_CHANNEL = "channel";
+    private final static String SQAN_CHANNEL = "torgi";
     private SosMessageListener listener;
 
     public SosIpcTransceiver(SosMessageListener listener) {
@@ -49,12 +57,28 @@ public class SosIpcTransceiver extends BroadcastReceiver {
     @Override
     public void onReceive(Context context, Intent intent) {
         if ((context != null) && (intent != null)) {
-            if (ACTION_SOS.equals(intent.getAction())) {
+            String action = intent.getAction();
+            if (ACTION_SOS.equalsIgnoreCase(action)) {
                 String origin = intent.getStringExtra(EXTRA_ORIGIN);
                 if (!BuildConfig.APPLICATION_ID.equalsIgnoreCase(origin))
                     onMessageReceived(context, origin, intent.getStringExtra(EXTRA_PAYLOAD));
+            } else if (ACTION_SQAN_BROADCAST.equalsIgnoreCase(action)) { //forward traffic from SqAN
+                String origin = intent.getStringExtra(EXTRA_ORIGIN);
+                if (!BuildConfig.APPLICATION_ID.equalsIgnoreCase(origin)) {
+                    String channel = intent.getStringExtra(SQAN_PACKET_CHANNEL);
+                    if (SQAN_CHANNEL.equalsIgnoreCase(channel)) { //only handle TORGI channel broadcasts
+                        try {
+                            byte[] bytes = intent.getByteArrayExtra(SQAN_PACKET_BYTES);
+                            if (bytes != null) {
+                                String payload = new String(bytes,"UTF-8");
+                                onMessageReceived(context,"sqan.torgi",payload);
+                            }
+                        } catch (UnsupportedEncodingException ignore) {
+                        }
+                    }
+                }
             } else
-                Log.e(TAG, "Unexpected action message received: " + intent.getAction());
+                Log.e(TAG, "Unexpected action message received: " + action);
         }
     }
 
@@ -146,8 +170,22 @@ public class SosIpcTransceiver extends BroadcastReceiver {
         Intent intent = new Intent(ACTION_SOS);
         intent.putExtra(EXTRA_ORIGIN, BuildConfig.APPLICATION_ID);
         intent.putExtra(EXTRA_PAYLOAD,sosOperation);
-
         context.sendBroadcast(intent);
+
+        //Broadcast of SqAN as well
+        if (Config.isSqAnBroadcastEnabled(context)) {
+			Log.d(TAG,"Broadcasting over SqAN as well");
+            try {
+                byte[] bytes = sosOperation.getBytes("UTF-8");
+                Intent sqanIntent = new Intent(ACTION_SQAN_BROADCAST);
+                sqanIntent.putExtra(EXTRA_ORIGIN, BuildConfig.APPLICATION_ID);
+                sqanIntent.putExtra(SQAN_PACKET_BYTES, bytes);
+                sqanIntent.putExtra(SQAN_PACKET_CHANNEL, SQAN_CHANNEL);
+                context.sendBroadcast(sqanIntent);
+            } catch (UnsupportedEncodingException ignore) {
+            }
+        }
+
         Log.d(TAG,"Broadcast: "+sosOperation);
     }
 

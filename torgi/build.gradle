@@ -44,14 +44,14 @@ android {
 
 dependencies {
     implementation 'androidx.constraintlayout:constraintlayout:2.0.0-alpha3'
-    implementation 'androidx.appcompat:appcompat:1.1.0-alpha01'
-    implementation 'com.google.android.material:material:1.1.0-alpha02'
+    implementation 'androidx.appcompat:appcompat:1.1.0-alpha02'
+    implementation 'com.google.android.material:material:1.1.0-alpha04'
     viewerImplementation 'androidx.constraintlayout:constraintlayout:2.0.0-alpha3'
     viewerImplementation 'com.github.PhilJay:MPAndroidChart:v3.1.0-alpha' //for charts
     viewerImplementation 'org.osmdroid:osmdroid-android:6.0.2'
     implementation 'org.apache.httpcomponents:httpclient:4.5.6' //for SOS server
     implementation 'org.nanohttpd:nanohttpd:2.3.1' //for SOS server
-    implementation 'com.github.sofwerx:swe-android:1.0'
+    implementation 'com.github.sofwerx:swe-android:1.0.1'
     implementation 'org.apache.commons:commons-math3:3.6.1' //for statistical analysis
     implementation 'mil.nga.geopackage:geopackage-android:3.1.0'
     testImplementation 'junit:junit:4.12'

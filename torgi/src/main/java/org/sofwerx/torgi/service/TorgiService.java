@@ -202,7 +202,9 @@ public class TorgiService extends Service implements SosMessageListener {
         sosSensor.addMeasurement(sosMeasurementCn0);
         sosSensor.addMeasurement(sosMeasurementAgc);
         sosSensor.addMeasurement(sosMeasurementRisk);
-        sosService = new SosService(this, sosSensor,prefs.getString(Config.PREFS_SOS_URL,null), prefs.getBoolean(Config.PREFS_BROADCAST,true) || prefs.getBoolean(Config.PREFS_SEND_TO_SOS,true), Config.isIpcBroadcastEnabled(this));
+        if (!Config.isSosBroadcastEnabled(this))
+            assumeDefaultsForSosSensorIfNeeded();
+        sosService = new SosService(this, sosSensor,Config.isSosBroadcastEnabled(this)?prefs.getString(Config.PREFS_SOS_URL,null):null, prefs.getBoolean(Config.PREFS_BROADCAST,true) || prefs.getBoolean(Config.PREFS_SEND_TO_SOS,true), Config.isIpcBroadcastEnabled(this));
         prefChangeListener = (prefs1, key) -> {
             if (sosService != null) {
                 boolean resetSosSensor = false;
@@ -231,6 +233,22 @@ public class TorgiService extends Service implements SosMessageListener {
             }
         };
         prefs.registerOnSharedPreferenceChangeListener(prefChangeListener);
+    }
+
+    /**
+     * No SOS-T server could be reached so the sensor will self-assign and broadcast
+     * results in the blind
+     */
+    private void assumeDefaultsForSosSensorIfNeeded() {
+        if ((sosSensor != null) && (sosSensor.getUniqueId() != null)) {
+            Log.d(TAG,"Contacting an outside SOS server is not enabled, so assuming default Senor assignments if needed");
+            if (sosSensor.getAssignedProcedure() == null)
+                sosSensor.setAssignedProcedure(sosSensor.getUniqueId());
+            if (sosSensor.getAssignedOffering() == null)
+                sosSensor.setAssignedOffering(sosSensor.getUniqueId()+"-sos");
+            if (sosSensor.getAssignedTemplate() == null)
+                sosSensor.setAssignedTemplate(sosSensor.getAssignedProcedure()+"#output0");
+        }
     }
 
     public InputSourceType getInputType() {

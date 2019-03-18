@@ -204,7 +204,7 @@ public class TorgiService extends Service implements SosMessageListener {
         sosSensor.addMeasurement(sosMeasurementRisk);
         if (!Config.isSosBroadcastEnabled(this))
             assumeDefaultsForSosSensorIfNeeded();
-        sosService = new SosService(this, sosSensor,Config.isSosBroadcastEnabled(this)?prefs.getString(Config.PREFS_SOS_URL,null):null, prefs.getBoolean(Config.PREFS_BROADCAST,true) || prefs.getBoolean(Config.PREFS_SEND_TO_SOS,true), Config.isIpcBroadcastEnabled(this));
+        sosService = new SosService(this, sosSensor,Config.isSosBroadcastEnabled(this)?prefs.getString(Config.PREFS_SOS_URL,null):null,prefs.getString(Config.PREFS_SOS_USERNAME,null),prefs.getString(Config.PREFS_SOS_PASSWORD,null), prefs.getBoolean(Config.PREFS_BROADCAST,true) || prefs.getBoolean(Config.PREFS_SEND_TO_SOS,true), Config.isIpcBroadcastEnabled(this));
         prefChangeListener = (prefs1, key) -> {
             if (sosService != null) {
                 boolean resetSosSensor = false;
@@ -213,6 +213,12 @@ public class TorgiService extends Service implements SosMessageListener {
                     resetSosSensor = true;
                 } else if (Config.PREFS_SOS_URL.equalsIgnoreCase(key)) {
                     sosService.setSosServerUrl(prefs1.getString(key, null));
+                    resetSosSensor = true;
+                } else if (Config.PREFS_SOS_USERNAME.equalsIgnoreCase(key)) {
+                    sosService.setSosServerUsername(prefs1.getString(key, null));
+                    resetSosSensor = true;
+                } else if (Config.PREFS_SOS_PASSWORD.equalsIgnoreCase(key)) {
+                    sosService.setSosServerPassword(prefs1.getString(key, null));
                     resetSosSensor = true;
                 } else if (Config.PREFS_UUID.equalsIgnoreCase(key))
                     resetSosSensor = true;
@@ -603,21 +609,25 @@ public class TorgiService extends Service implements SosMessageListener {
                     listener.onEWDataProcessed(dp, indicators);
                 if (geoPackageRecorder != null)
                     geoPackageRecorder.onEWDataProcessed(dp,indicators);
-                if ((sosSensor != null) && sosSensor.isReadyToSendResults() && (System.currentTimeMillis() > nextSosReportTime) && (dp.getSpaceTime() != null)) {
-                    nextSosReportTime = System.currentTimeMillis() + SOS_REPORT_RATE;
-                    SpaceTime spaceTime = dp.getSpaceTime();
-                    sosMeasurementTime.setValue(spaceTime.getTime());
-                    sosMeasurementLocation.setLocation(spaceTime.getLatitude(),spaceTime.getLongitude(),spaceTime.getAltitude());
-                    sosMeasurementRisk.setValue(ewRisk*100f);
-                    GNSSEWValues values = dp.getAverageMeasurements();
-                    if (values == null) {
-                        sosMeasurementCn0.setValue(0d);
-                        sosMeasurementAgc.setValue(0d);
-                    } else {
-                        sosMeasurementCn0.setValue(values.getCn0());
-                        sosMeasurementAgc.setValue(values.getAgc());
+                if ((sosSensor != null) && sosSensor.isReadyToSendResults() && (System.currentTimeMillis() > nextSosReportTime)) {
+                    if ((sosMeasurementTime != null) && (sosMeasurementLocation != null) && (sosMeasurementRisk != null) && (sosMeasurementCn0 != null) && (sosMeasurementAgc != null)) {
+                    final SpaceTime spaceTime = dp.getSpaceTime();
+                        if (spaceTime != null) {
+                            nextSosReportTime = System.currentTimeMillis() + SOS_REPORT_RATE;
+                            sosMeasurementTime.setValue(spaceTime.getTime());
+                            sosMeasurementLocation.setLocation(spaceTime.getLatitude(), spaceTime.getLongitude(), spaceTime.getAltitude());
+                            sosMeasurementRisk.setValue(ewRisk * 100f);
+                            GNSSEWValues values = dp.getAverageMeasurements();
+                            if (values == null) {
+                                sosMeasurementCn0.setValue(0d);
+                                sosMeasurementAgc.setValue(0d);
+                            } else {
+                                sosMeasurementCn0.setValue(values.getCn0());
+                                sosMeasurementAgc.setValue(values.getAgc());
+                            }
+                            sosService.broadcastSensorReadings();
+                        }
                     }
-                    sosService.broadcastSensorReadings();
                 }
             }
         }

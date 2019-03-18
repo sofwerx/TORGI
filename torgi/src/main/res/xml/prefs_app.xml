@@ -33,6 +33,20 @@
             android:hint="http://example.com/sensorhub/sos"
             android:dependency="sendtosos"/>
 
+        <EditTextPreference
+            android:key="sosusr"
+            android:title="Username"
+            android:summary="The username for this SOS server (or leave blank for none)"
+            android:hint="Username"
+            android:dependency="sendtosos"/>
+
+        <EditTextPreference
+            android:key="sospwd"
+            android:title="Password"
+            android:summary="The password for this SOS server (or leave blank for none)"
+            android:hint="Password"
+            android:dependency="sendtosos"/>
+
     </PreferenceCategory>
 
     <PreferenceCategory

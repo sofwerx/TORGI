@@ -20,6 +20,8 @@ public class Config {
     public final static String PREFS_SQAN = "sqan";
     public final static String PREFS_SEND_TO_SOS = "sendtosos";
     public final static String PREFS_SOS_URL = "sosurl";
+    public final static String PREFS_SOS_USERNAME = "sosusr";
+    public final static String PREFS_SOS_PASSWORD = "sospwd";
     public final static String PREFS_SOS_ASSIGNED_PROCEDURE = "sosprocedure";
     public final static String PREFS_SOS_ASSIGNED_OFFERING = "sosoffering";
     public final static String PREFS_SOS_ASSIGNED_TEMPLATE = "sostemplate";

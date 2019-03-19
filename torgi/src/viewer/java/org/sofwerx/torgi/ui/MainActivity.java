@@ -726,13 +726,19 @@ public class MainActivity extends AbstractTORGIActivity implements GnssMeasureme
         if (heatmap != null) {
             if (heatmap.getPolygon() != null) {
                 runOnUiThread(() -> {
-                    heatmap.getPolygon().setFillColor(HeatmapOverlay.getFillColor(heatmap.getRfiRisk()));
-                    osmMap.invalidate();
+                    try {
+                        heatmap.getPolygon().setFillColor(HeatmapOverlay.getFillColor(heatmap.getRfiRisk()));
+                        osmMap.invalidate();
+                    } catch (Exception ignore) {
+                    }
                 });
             } else {
                 runOnUiThread(() -> {
-                    overlayHeatmap.createPolygon(heatmap);
-                    osmMap.invalidate();
+                    try {
+                        overlayHeatmap.createPolygon(heatmap);
+                        osmMap.invalidate();
+                    } catch (Exception ignore) {
+                    }
                 });
             }
         }

@@ -39,20 +39,20 @@ import org.sofwerx.torgi.listener.GeoPackageRetrievalListener;
 import org.sofwerx.torgi.listener.GnssMeasurementListener;
 import org.sofwerx.torgi.R;
 import org.sofwerx.torgi.listener.SensorListener;
-import org.sofwerx.torgi.ogc.sos.AbstractSosOperation;
-import org.sofwerx.torgi.ogc.sos.OperationInsertResult;
-import org.sofwerx.torgi.ogc.sos.OperationInsertResultTemplate;
-import org.sofwerx.torgi.ogc.sos.OperationInsertSensor;
-import org.sofwerx.torgi.ogc.sos.SensorLocationResultTemplateField;
-import org.sofwerx.torgi.ogc.sos.SensorMeasurement;
-import org.sofwerx.torgi.ogc.sos.SensorMeasurementLocation;
-import org.sofwerx.torgi.ogc.sos.SensorMeasurementTime;
-import org.sofwerx.torgi.ogc.sos.SensorResultTemplateField;
-import org.sofwerx.torgi.ogc.sos.SensorTimeResultTemplateField;
-import org.sofwerx.torgi.ogc.sos.SosIpcTransceiver;
-import org.sofwerx.torgi.ogc.sos.SosMessageListener;
-import org.sofwerx.torgi.ogc.sos.SosSensor;
-import org.sofwerx.torgi.ogc.sos.SosService;
+import org.sofwerx.ogc.sos.AbstractSosOperation;
+import org.sofwerx.ogc.sos.OperationInsertResult;
+import org.sofwerx.ogc.sos.OperationInsertResultTemplate;
+import org.sofwerx.ogc.sos.OperationInsertSensor;
+import org.sofwerx.ogc.sos.SensorLocationResultTemplateField;
+import org.sofwerx.ogc.sos.SensorMeasurement;
+import org.sofwerx.ogc.sos.SensorMeasurementLocation;
+import org.sofwerx.ogc.sos.SensorMeasurementTime;
+import org.sofwerx.ogc.sos.SensorResultTemplateField;
+import org.sofwerx.ogc.sos.SensorTimeResultTemplateField;
+import org.sofwerx.ogc.sos.SosIpcTransceiver;
+import org.sofwerx.ogc.sos.SosMessageListener;
+import org.sofwerx.ogc.sos.SosSensor;
+import org.sofwerx.ogc.sos.SosService;
 import org.sofwerx.torgi.ui.FailureActivity;
 import org.sofwerx.torgi.ui.Heatmap;
 import org.sofwerx.torgi.util.CallsignUtil;
@@ -202,7 +202,9 @@ public class TorgiService extends Service implements SosMessageListener {
         sosSensor.addMeasurement(sosMeasurementCn0);
         sosSensor.addMeasurement(sosMeasurementAgc);
         sosSensor.addMeasurement(sosMeasurementRisk);
-        sosService = new SosService(this, sosSensor,prefs.getString(Config.PREFS_SOS_URL,null), prefs.getBoolean(Config.PREFS_BROADCAST,true) || prefs.getBoolean(Config.PREFS_SEND_TO_SOS,true));
+        if (!Config.isSosBroadcastEnabled(this))
+            assumeDefaultsForSosSensorIfNeeded();
+        sosService = new SosService(this, sosSensor,Config.isSosBroadcastEnabled(this)?prefs.getString(Config.PREFS_SOS_URL,null):null,prefs.getString(Config.PREFS_SOS_USERNAME,null),prefs.getString(Config.PREFS_SOS_PASSWORD,null), prefs.getBoolean(Config.PREFS_BROADCAST,true) || prefs.getBoolean(Config.PREFS_SEND_TO_SOS,true), Config.isIpcBroadcastEnabled(this));
         prefChangeListener = (prefs1, key) -> {
             if (sosService != null) {
                 boolean resetSosSensor = false;
@@ -211,6 +213,12 @@ public class TorgiService extends Service implements SosMessageListener {
                     resetSosSensor = true;
                 } else if (Config.PREFS_SOS_URL.equalsIgnoreCase(key)) {
                     sosService.setSosServerUrl(prefs1.getString(key, null));
+                    resetSosSensor = true;
+                } else if (Config.PREFS_SOS_USERNAME.equalsIgnoreCase(key)) {
+                    sosService.setSosServerUsername(prefs1.getString(key, null));
+                    resetSosSensor = true;
+                } else if (Config.PREFS_SOS_PASSWORD.equalsIgnoreCase(key)) {
+                    sosService.setSosServerPassword(prefs1.getString(key, null));
                     resetSosSensor = true;
                 } else if (Config.PREFS_UUID.equalsIgnoreCase(key))
                     resetSosSensor = true;
@@ -231,6 +239,22 @@ public class TorgiService extends Service implements SosMessageListener {
             }
         };
         prefs.registerOnSharedPreferenceChangeListener(prefChangeListener);
+    }
+
+    /**
+     * No SOS-T server could be reached so the sensor will self-assign and broadcast
+     * results in the blind
+     */
+    private void assumeDefaultsForSosSensorIfNeeded() {
+        if ((sosSensor != null) && (sosSensor.getUniqueId() != null)) {
+            Log.d(TAG,"Contacting an outside SOS server is not enabled, so assuming default Senor assignments if needed");
+            if (sosSensor.getAssignedProcedure() == null)
+                sosSensor.setAssignedProcedure(sosSensor.getUniqueId());
+            if (sosSensor.getAssignedOffering() == null)
+                sosSensor.setAssignedOffering(sosSensor.getUniqueId()+"-sos");
+            if (sosSensor.getAssignedTemplate() == null)
+                sosSensor.setAssignedTemplate(sosSensor.getAssignedProcedure()+"#output0");
+        }
     }
 
     public InputSourceType getInputType() {
@@ -585,21 +609,25 @@ public class TorgiService extends Service implements SosMessageListener {
                     listener.onEWDataProcessed(dp, indicators);
                 if (geoPackageRecorder != null)
                     geoPackageRecorder.onEWDataProcessed(dp,indicators);
-                if ((sosSensor != null) && sosSensor.isReadyToSendResults() && (System.currentTimeMillis() > nextSosReportTime) && (dp.getSpaceTime() != null)) {
-                    nextSosReportTime = System.currentTimeMillis() + SOS_REPORT_RATE;
-                    SpaceTime spaceTime = dp.getSpaceTime();
-                    sosMeasurementTime.setValue(spaceTime.getTime());
-                    sosMeasurementLocation.setLocation(spaceTime.getLatitude(),spaceTime.getLongitude(),spaceTime.getAltitude());
-                    sosMeasurementRisk.setValue(ewRisk*100f);
-                    GNSSEWValues values = dp.getAverageMeasurements();
-                    if (values == null) {
-                        sosMeasurementCn0.setValue(0d);
-                        sosMeasurementAgc.setValue(0d);
-                    } else {
-                        sosMeasurementCn0.setValue(values.getCn0());
-                        sosMeasurementAgc.setValue(values.getAgc());
+                if ((sosSensor != null) && sosSensor.isReadyToSendResults() && (System.currentTimeMillis() > nextSosReportTime)) {
+                    if ((sosMeasurementTime != null) && (sosMeasurementLocation != null) && (sosMeasurementRisk != null) && (sosMeasurementCn0 != null) && (sosMeasurementAgc != null)) {
+                    final SpaceTime spaceTime = dp.getSpaceTime();
+                        if (spaceTime != null) {
+                            nextSosReportTime = System.currentTimeMillis() + SOS_REPORT_RATE;
+                            sosMeasurementTime.setValue(spaceTime.getTime());
+                            sosMeasurementLocation.setLocation(spaceTime.getLatitude(), spaceTime.getLongitude(), spaceTime.getAltitude());
+                            sosMeasurementRisk.setValue(ewRisk * 100f);
+                            GNSSEWValues values = dp.getAverageMeasurements();
+                            if (values == null) {
+                                sosMeasurementCn0.setValue(0d);
+                                sosMeasurementAgc.setValue(0d);
+                            } else {
+                                sosMeasurementCn0.setValue(values.getCn0());
+                                sosMeasurementAgc.setValue(values.getAgc());
+                            }
+                            sosService.broadcastSensorReadings();
+                        }
                     }
-                    sosService.broadcastSensorReadings();
                 }
             }
         }

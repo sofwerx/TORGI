@@ -1,9 +1,8 @@
 # TORGI
 
-[![Waffle.io - Columns and their card count](https://badge.waffle.io/sofwerx/TORGI.svg?columns=all)](https://waffle.io/sofwerx/TORGI)
 [![Build Status](https://travis-ci.org/sofwerx/TORGI.svg?branch=master)](https://travis-ci.org/sofwerx/TORGI)
 
-## Tactical Observation of RF &amp; GNSS Interference
+## Tactical Observation of RF GNSS Interference
 
 Collect, store, and display observations and analysis of GPS "fix" availability and quality.
 
@@ -20,15 +19,13 @@ Observation points and associated location fix data are stored as a feature laye
 The Related Tables Extension is a community standard extension to the GeoPackage map database, moving toward full adoption by [OGC (Open Geospatial Consortium)](http://www.opengeospatial.org/).
 
 ## Open Architecture / Open Standards
-[<img src="https://github.com/sofwerx/TORGI/blob/master/docs/geopackage_1_2_badge.png?raw=true" /> <img align="top" src="https://github.com/sofwerx/TORGI/blob/master/docs/Certified_OGC_Compliant_Logo_Web.gif?raw=true" />](https://portal.opengeospatial.org/public_ogc/compliance/srv_ogc_compliance_badge.php?id=129&pid=1536)
+[<img src="https://raw.githubusercontent.com/sofwerx/TORGI/master/docs/geopackage_1_2_badge.png" height="50px" alt="GeoPackage 1.2" /> <img align="top" src="https://raw.githubusercontent.com/sofwerx/TORGI/master/docs/Certified_OGC_Compliant_Logo_Web.gif" height="50px" alt="Certified OGC Compliant" />](https://portal.opengeospatial.org/public_ogc/compliance/srv_ogc_compliance_badge.php?id=129&pid=1536)
 
-<img src="https://github.com/sofwerx/TORGI/blob/master/docs/TORGI-GPKG-ERD.png?raw=true" />
+### GeoPackage / SQLite Database ERD
 
-![Open Architecture / Open Standards data + communication model](docs/AMOpenArchitecture.png)
+<img src="https://raw.githubusercontent.com/sofwerx/TORGI/master/docs/TORGI-GPKG-ERD.png" />
 
-([View / Edit diagram in browser](https://www.draw.io/?url=https%3A%2F%2Fgithub.com%2Fsofwerx%2FTORGI%2Fraw%2Fmaster%2Fdocs%2FAMOpenArchitecture.png%3Ft%3D0))
-
-### GeoPackage / SQLite Database ERD ###
+([View / Edit diagram in browser](https://www.draw.io/?url=https%3A%2F%2Fraw.githubusercontent.com%2Fsofwerx%2FTORGI%2Fmaster%2Fdocs%2FTORGI-GPKG-ERD.png%3Ft%3D0))
 
 ## DevOps
 
@@ -37,9 +34,6 @@ The Related Tables Extension is a community standard extension to the GeoPackage
 Android .apk will be build inside the Docker container: (`torgi/build/outputs/apk/{debug|release}`)
 
 See Dockerfile for build process. Requires Android build tools and [NGA GeoPackage Android SDK](https://ngageoint.github.io/geopackage-android/).
-
-Waffle.io - project tracking:
-https://waffle.io/sofwerx/TORGI
 
 Travis CI - automated continuous integration: https://travis-ci.org/sofwerx/TORGI
 

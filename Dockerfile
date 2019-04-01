@@ -1,4 +1,4 @@
-FROM java:8-jdk
+FROM openjdk:8-jdk-stretch
 
 RUN apt-get update
 RUN apt-get install -y wget git unzip

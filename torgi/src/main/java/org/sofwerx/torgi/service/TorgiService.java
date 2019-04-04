@@ -40,15 +40,10 @@ import org.sofwerx.torgi.listener.GnssMeasurementListener;
 import org.sofwerx.torgi.R;
 import org.sofwerx.torgi.listener.SensorListener;
 import org.sofwerx.ogc.sos.AbstractSosOperation;
-import org.sofwerx.ogc.sos.OperationInsertResult;
-import org.sofwerx.ogc.sos.OperationInsertResultTemplate;
-import org.sofwerx.ogc.sos.OperationInsertSensor;
-import org.sofwerx.ogc.sos.SensorLocationResultTemplateField;
 import org.sofwerx.ogc.sos.SensorMeasurement;
 import org.sofwerx.ogc.sos.SensorMeasurementLocation;
 import org.sofwerx.ogc.sos.SensorMeasurementTime;
 import org.sofwerx.ogc.sos.SensorResultTemplateField;
-import org.sofwerx.ogc.sos.SensorTimeResultTemplateField;
 import org.sofwerx.ogc.sos.SosIpcTransceiver;
 import org.sofwerx.ogc.sos.SosMessageListener;
 import org.sofwerx.ogc.sos.SosSensor;
@@ -56,14 +51,9 @@ import org.sofwerx.ogc.sos.SosService;
 import org.sofwerx.torgi.ui.FailureActivity;
 import org.sofwerx.torgi.ui.Heatmap;
 import org.sofwerx.torgi.util.CallsignUtil;
-import org.w3c.dom.Document;
-import org.w3c.dom.Element;
-import org.w3c.dom.NodeList;
 
 import java.io.File;
 import java.util.ArrayList;
-
-import javax.xml.parsers.ParserConfigurationException;
 
 import static org.sofwerx.torgi.service.TorgiService.InputSourceType.LOCAL;
 import static org.sofwerx.torgi.service.TorgiService.InputSourceType.LOCAL_FILE;
@@ -99,6 +89,11 @@ public class TorgiService extends Service implements SosMessageListener {
     private long firstGpsAcqTime = Long.MIN_VALUE;
     private final static long TIME_TO_WAIT_FOR_GNSS_RAW_BEFORE_FAILURE = 1000l * 15l; //time to wait between first location measurement received and considering this device does not likely support raw GNSS collection
     private boolean gnssRawSupportKnown = false;
+    private static TorgiService instance;
+
+    public TorgiService() {
+        instance = this;
+    }
 
     public void setListener(GnssMeasurementListener listener) {
         this.listener = listener;
@@ -171,6 +166,24 @@ public class TorgiService extends Service implements SosMessageListener {
         }
     }
 
+    public static void clearSosSensor() {
+        if (instance != null) {
+            SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(instance.getApplicationContext());
+            SharedPreferences.Editor edit = prefs.edit();
+            if (instance.sosSensor != null) {
+                instance.sosSensor.setAssignedProcedure(null);
+                instance.sosSensor.setAssignedOffering(null);
+                instance.sosSensor.setAssignedTemplate(null);
+            }
+            edit.remove(Config.PREFS_SOS_ASSIGNED_PROCEDURE);
+            edit.remove(Config.PREFS_SOS_ASSIGNED_OFFERING);
+            edit.remove(Config.PREFS_SOS_ASSIGNED_TEMPLATE);
+            edit.apply();
+            instance.setupSosService();
+            Log.d("SosIpc","SOS assignments cleared");
+        }
+    }
+
     private SosSensor sosSensor;
     private SensorMeasurementTime sosMeasurementTime;
     private SensorMeasurementLocation sosMeasurementLocation;
@@ -178,6 +191,7 @@ public class TorgiService extends Service implements SosMessageListener {
     private SensorMeasurement sosMeasurementAgc;
     private SensorMeasurement sosMeasurementRisk;
     private void setupSosService() {
+        Log.d("SosIpc","setupSosService()");
         SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(getApplicationContext());
         String callsign = prefs.getString(Config.PREFS_UUID,null);
         if ((callsign == null) || (callsign.length() < 1)) {
@@ -387,6 +401,7 @@ public class TorgiService extends Service implements SosMessageListener {
      * Clean-up TORGI and then stop this service
      */
     public void shutdown() {
+        instance = null;
         stopSelf();
     }
 

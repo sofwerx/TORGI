@@ -15,6 +15,10 @@
             android:defaultValue="true"
             android:dependency="broadcast"/>
 
+        <Preference android:title="@string/pref_forget_sos_title"
+            android:key="prefForgetSos"
+            android:summary="@string/pref_forget_sos_narrative"/>
+
         <EditTextPreference
             android:key="callsign"
             android:title="@string/device_callsign"

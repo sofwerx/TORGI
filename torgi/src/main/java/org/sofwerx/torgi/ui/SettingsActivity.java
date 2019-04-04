@@ -6,9 +6,11 @@ import android.net.Uri;
 import android.os.Bundle;
 import android.preference.Preference;
 import android.preference.PreferenceFragment;
+import android.widget.Toast;
 
 import org.sofwerx.torgi.Config;
 import org.sofwerx.torgi.R;
+import org.sofwerx.torgi.service.TorgiService;
 
 import java.io.File;
 
@@ -26,6 +28,7 @@ public class SettingsActivity extends Activity {
         @Override
         public void onCreate(Bundle savedInstanceState) {
             super.onCreate(savedInstanceState);
+            final Activity activity = getActivity();
             addPreferencesFromResource(R.xml.prefs_app);
             Preference filePicker = findPreference("savedir");
             String dest = Config.getInstance(getActivity()).getSavedDir();
@@ -36,6 +39,15 @@ public class SettingsActivity extends Activity {
                 if (intent.resolveActivityInfo(getContext().getPackageManager(), 0) != null)
                     startActivity(intent);
                 return true;
+            });
+            Preference clearSos = findPreference("prefForgetSos");
+            clearSos.setOnPreferenceClickListener(new Preference.OnPreferenceClickListener() {
+                @Override
+                public boolean onPreferenceClick(Preference preference) {
+                    TorgiService.clearSosSensor();
+                    Toast.makeText(activity,"SOS assignments cleared",Toast.LENGTH_SHORT).show();
+                    return false;
+                }
             });
         }
     }

@@ -626,7 +626,7 @@ public class TorgiService extends Service implements SosMessageListener {
                     geoPackageRecorder.onEWDataProcessed(dp,indicators);
                 if ((sosSensor != null) && sosSensor.isReadyToSendResults() && (System.currentTimeMillis() > nextSosReportTime)) {
                     if ((sosMeasurementTime != null) && (sosMeasurementLocation != null) && (sosMeasurementRisk != null) && (sosMeasurementCn0 != null) && (sosMeasurementAgc != null)) {
-                    final SpaceTime spaceTime = dp.getSpaceTime();
+                        final SpaceTime spaceTime = dp.getSpaceTime();
                         if (spaceTime != null) {
                             nextSosReportTime = System.currentTimeMillis() + SOS_REPORT_RATE;
                             sosMeasurementTime.setValue(spaceTime.getTime());

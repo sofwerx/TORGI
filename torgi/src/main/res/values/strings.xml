@@ -50,4 +50,6 @@
     <string name="not_supported_description">TORGI is not receiving the raw measurement data that it needs to work. The device\'s GPS appears to be working correctly, so this probably means this device is not capable of gathering the raw data TORGI needs. You can continue to wait for this raw data, but it does not look like this device supports TORGI.</string>
     <string name="try_anyway">Keep Trying</string>
     <string name="uninstall">Uninstall TORGI</string>
+    <string name="pref_forget_sos_title">Forget SOS Assignments</string>
+    <string name="pref_forget_sos_narrative">Forget any indentification assignments made by an SOS server</string>
 </resources>

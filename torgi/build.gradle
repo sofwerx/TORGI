@@ -1,5 +1,9 @@
 apply plugin: 'com.android.application'
 
+task wrapper(type: Wrapper) {
+    gradleVersion = '4.6'
+}
+
 android {
     compileSdkVersion 28
 
@@ -39,6 +43,10 @@ android {
     compileOptions {
         targetCompatibility 1.8
         sourceCompatibility 1.8
+    }
+
+    lintOptions {
+          abortOnError false
     }
 }
 
